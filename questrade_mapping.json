@@ -1,0 +1,77 @@
+{
+  "customer": "Questrade",
+  "hierarchy": [
+    {
+      "position": 1,
+      "newName": "Questrade Trading (Self-Directed)",
+      "components": [
+        {
+          "position": 1,
+          "newName": "Execution & Order Management",
+          "features": [
+            { "position": 1, "newName": "Advanced Order Types" },
+            { "position": 2, "newName": "Options Trading Workbench" },
+            { "position": 3, "newName": "Real-time Data Streaming" },
+            { "position": 4, "newName": "Margin & Collateral Tools" }
+          ]
+        },
+        {
+          "position": 2,
+          "newName": "Market Analysis & Research",
+          "features": [
+            { "position": 1, "newName": "Technical Charting Engine" },
+            { "position": 2, "newName": "Fundamental Insight Engine" },
+            { "position": 3, "newName": "Watchlist Management" },
+            { "position": 4, "newName": "News & Social Sentiment" }
+          ]
+        },
+        {
+          "position": 3,
+          "newName": "Account & Cash Management",
+          "features": [
+            { "position": 1, "newName": "Instant Funding (Questrade Deposit)" },
+            { "position": 2, "newName": "Tax-Advantaged Reporting" },
+            { "position": 3, "newName": "Currency Conversion (FX)" },
+            { "position": 4, "newName": "Security & Access" }
+          ]
+        }
+      ]
+    },
+    {
+      "position": 2,
+      "newName": "Questwealth Portfolios (Managed)",
+      "components": [
+        {
+          "position": 1,
+          "newName": "Portfolio Construction",
+          "features": [
+            { "position": 1, "newName": "Risk Profiling Engine" },
+            { "position": 2, "newName": "Asset Allocation Models" },
+            { "position": 3, "newName": "Tax-Loss Harvesting" },
+            { "position": 4, "newName": "Rebalancing Automation" }
+          ]
+        },
+        {
+          "position": 2,
+          "newName": "Performance Tracking",
+          "features": [
+            { "position": 1, "newName": "Goal-Based Progress" },
+            { "position": 2, "newName": "Benchmark Comparison" },
+            { "position": 3, "newName": "Fee Transparency Dashboard" },
+            { "position": 4, "newName": "Historical Reporting" }
+          ]
+        },
+        {
+          "position": 3,
+          "newName": "Client Experience & Advice",
+          "features": [
+            { "position": 1, "newName": "Advisor Connect" },
+            { "position": 2, "newName": "Digital Onboarding" },
+            { "position": 3, "newName": "Financial Education Hub" },
+            { "position": 4, "newName": "Family Accounts" }
+          ]
+        }
+      ]
+    }
+  ]
+}
