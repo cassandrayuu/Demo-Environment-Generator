@@ -37,7 +37,7 @@ def get_file_paths(company: str, base_dir: Path) -> dict:
     return {
         "mapping_json": base_dir / "product hierarchy mapping files" / f"{normalized}_mapping.json",
         "strategy_json": base_dir / "strategic hierarchy mapping files" / f"{normalized}_strategy_mapping.json",
-        "features_txt": base_dir / f"{normalized}_features.txt"
+        "features_txt": base_dir / "insights mapping files" / f"{normalized}_features.txt"
     }
 
 

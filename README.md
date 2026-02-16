@@ -1,80 +1,146 @@
 # Productboard Demo Environment Generator
 
-Generate and apply best-practice demo hierarchies for prospect companies in Productboard. Simply provide a company name and website, and AI generates both product and strategic hierarchies tailored to that company.
+Generate and apply best-practice demo hierarchies for prospect companies in Productboard. Simply provide a company name and website, and AI generates product hierarchies, strategic hierarchies, and user insights tailored to that company.
 
-## Quick Start (For Your Team)
+## Quick Start
 
-**One-step generation:** Open this project in Nimbalyst and tell Claude:
+### 1. One-Time Setup
 
-> "Generate hierarchies for [Company Name] [website.com]"
-
-Claude will:
-1. Research the company's products, market, and strategy
-2. Generate a product hierarchy (2 products, 3 components each, 4 features each)
-3. Generate a strategic hierarchy (3 objectives, 2 key results each, 6 initiatives)
-4. Save both mapping files ready to apply
-
-**Example:**
-> "Generate hierarchies for Stripe stripe.com"
-
-## Prerequisites
-
-- Python 3
-- A Productboard API token with write access
-- The `requests` library (included in the virtual environment)
-- Nimbalyst with Claude for hierarchy generation
-
-## Setup
-
-1. Open Terminal and navigate to the project:
 ```bash
-cd /Users/cassandrayuu/hierarchy_sync_project
-```
+# Navigate to project
+cd ~/hierarchy_sync_project
 
-2. Activate the virtual environment:
-```bash
-source .venv/bin/activate
-```
+# Activate virtual environment
+source venv/bin/activate
 
-3. Set your Productboard API token:
-```bash
+# Set your Productboard API token
 export PB_TOKEN="your-productboard-api-token"
 ```
 
-## Workflow
-
-### Step 1: Generate Mapping Files
+### 2. Generate Files for a New Company
 
 In Nimbalyst, ask Claude:
-> "Generate hierarchies for [Prospect Name] [website.com]"
+> "Generate hierarchies for [Company Name] [website.com]"
 
-This creates two files:
+This creates three files:
 - `product hierarchy mapping files/<company>_mapping.json`
 - `strategic hierarchy mapping files/<company>_strategy_mapping.json`
+- `insights mapping files/<company>_features.txt`
 
-### Step 2: Preview Changes (Dry Run)
+### 3. Select Which Products to Rename
 
-Always run a dry-run first:
+Since each Productboard space may have different products, you need to select which ones to rename:
 
 ```bash
-# Product hierarchy
+python3 pb_rename_hierarchy.py "product hierarchy mapping files/<company>_mapping.json" --select
+```
+
+This shows your space's products and lets you choose which to rename:
+```bash
+cd ~/hierarchy_sync_project
+source venv/bin/activate
+pip install requests
+```
+
+### 4. Run the POC Setup
+
+**Dry run (preview changes):**
+```bash
+python3 pb_poc_setup.py --company "<Company Name>" --website "<website.com>" --dry-run
+```
+
+**Apply changes:**
+```bash
+python3 pb_poc_setup.py --company "<Company Name>" --website "<website.com>" --apply
+```
+
+The orchestrator runs three steps:
+1. **Step A:** Renames product hierarchy (products, components, features)
+2. **Step B:** Renames strategic hierarchy (objectives, key results, initiatives)
+3. **Step C:** Generates user insights (5 notes tagged with company name)
+
+---
+
+## Complete Workflow Example
+
+```bash
+# 1. Setup
+cd ~/hierarchy_sync_project
+source venv/bin/activate
+export PB_TOKEN="your-token"
+
+# 2. Generate files (in Nimbalyst)
+# Ask Claude: "Generate POC files for HL Agency https://hl.agency"
+
+# 3. Select products for your space
+python3 pb_rename_hierarchy.py "product hierarchy mapping files/hl_agency_mapping.json" --select
+# Enter: 1,3 (or whichever products fit your space)
+
+# 4. Preview changes
+python3 pb_poc_setup.py --company "HL Agency" --website "https://hl.agency" --dry-run
+
+# 5. Apply changes
+python3 pb_poc_setup.py --company "HL Agency" --website "https://hl.agency" --apply
+```
+
+---
+
+## Running Individual Scripts
+
+You can also run each script separately:
+
+### Product Hierarchy
+```bash
+# Preview
 python3 pb_rename_hierarchy.py "product hierarchy mapping files/<company>_mapping.json" --dry-run
 
-# Strategic hierarchy
-python3 pb_rename_strategy.py "strategic hierarchy mapping files/<company>_strategy_mapping.json" --dry-run
+# Apply
+python3 pb_rename_hierarchy.py "product hierarchy mapping files/<company>_mapping.json" --apply
 ```
 
-### Step 3: Apply Changes
-
-Once verified:
-
+### Strategic Hierarchy
 ```bash
-# Product hierarchy
-python3 pb_rename_hierarchy.py "product hierarchy mapping files/<company>_mapping.json" --apply
+# Preview
+python3 pb_rename_strategy.py "strategic hierarchy mapping files/<company>_strategy_mapping.json" --dry-run
 
-# Strategic hierarchy
+# Apply
 python3 pb_rename_strategy.py "strategic hierarchy mapping files/<company>_strategy_mapping.json" --apply
 ```
+
+### User Insights
+```bash
+# Preview
+python3 pb_generate_insights.py --company "<Company>" --features "insights mapping files/<company>_features.txt" --dry-run
+
+# Apply
+python3 pb_generate_insights.py --company "<Company>" --features "insights mapping files/<company>_features.txt" --apply
+```
+
+---
+
+## File Structure
+
+```
+hierarchy_sync_project/
+├── pb_poc_setup.py                     # Orchestrator - runs all three steps
+├── pb_rename_hierarchy.py              # Product hierarchy rename script
+├── pb_rename_strategy.py               # Strategic hierarchy rename script
+├── pb_generate_insights.py             # User insights generator
+├── venv/                               # Python virtual environment
+├── product hierarchy mapping files/
+│   ├── mapping_template.json           # Template
+│   ├── hl_agency_mapping.json
+│   └── ottimate_mapping.json
+├── strategic hierarchy mapping files/
+│   ├── strategy_mapping_template.json  # Template
+│   ├── hl_agency_strategy_mapping.json
+│   └── ottimate_strategy_mapping.json
+└── insights mapping files/
+    ├── hl_agency_features.txt
+    └── ottimate_features.txt
+```
+
+---
 
 ## JSON Mapping File Formats
 
@@ -92,7 +158,8 @@ python3 pb_rename_strategy.py "strategic hierarchy mapping files/<company>_strat
           "position": 1,
           "newName": "Component Name",
           "features": [
-            { "position": 1, "newName": "Feature Name" }
+            { "position": 1, "newName": "Feature Name" },
+            { "position": 2, "newName": "Feature Name" }
           ]
         }
       ]
@@ -118,22 +185,27 @@ python3 pb_rename_strategy.py "strategic hierarchy mapping files/<company>_strat
   ],
   "initiatives": [
     {"position": 1, "newName": "Initiative 1"},
-    {"position": 2, "newName": "Initiative 2"},
-    {"position": 3, "newName": "Initiative 3"},
-    {"position": 4, "newName": "Initiative 4"},
-    {"position": 5, "newName": "Initiative 5"},
-    {"position": 6, "newName": "Initiative 6"}
+    {"position": 2, "newName": "Initiative 2"}
   ]
 }
 ```
 
-**Note:** Initiatives are a flat global list (not nested under objectives) because Productboard's API treats initiatives as independent entities that can link to multiple objectives.
+### Features List (`<company>_features.txt`)
+
+One feature name per line:
+```
+Market Research & Insights
+Brand Positioning Framework
+Creative Brief Builder
+```
+
+---
 
 ## Troubleshooting
 
 ### "No module named 'requests'"
 ```bash
-source .venv/bin/activate
+source venv/bin/activate
 ```
 
 ### "PB_TOKEN environment variable is not set"
@@ -142,22 +214,22 @@ export PB_TOKEN="your-token"
 ```
 
 ### "Position out of range"
-The mapping file expects more entities than exist in Productboard. Verify the entity count matches your workspace configuration.
+Your space has fewer products/components than the mapping expects. Use `--select` to choose which products to rename.
 
-## File Structure
-
+### "This environment is externally managed"
+You need to use the virtual environment:
 ```
-hierarchy_sync_project/
-├── pb_rename_hierarchy.py          # Product hierarchy rename script
-├── pb_rename_strategy.py           # Strategic hierarchy rename script
-├── product hierarchy mapping files/
-│   ├── mapping_template.json       # Template for product hierarchies
-│   ├── exterro_mapping.json
-│   ├── ottimate_mapping.json
-│   └── productboard_mapping.json
-└── strategic hierarchy mapping files/
-    ├── strategy_mapping_template.json  # Template for strategic hierarchies
-    ├── exterro_strategy_mapping.json
-    ├── ottimate_strategy_mapping.json
-    └── productboard_strategy_mapping.json
+Your space has 3 products:
+--------------------------------------------------
+  1. Privacy & Information Governance (3 components)
+  2. test product (1 component)
+  3. eDiscovery Platform (3 components)
+--------------------------------------------------
+
+Mapping needs 2 products.
+
+Select 2 products to rename (e.g., "1,3" or "1 3"):
+> 1,3
+
+✓ Selection saved.
 ```

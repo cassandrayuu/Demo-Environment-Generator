@@ -11,7 +11,9 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 import time
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -229,6 +231,206 @@ def load_mapping(filepath: str) -> dict[str, Any]:
     return data
 
 
+def compute_mapping_expectations(mapping: dict[str, Any]) -> dict[str, int]:
+    """Count how many entities the mapping expects to rename."""
+    expected_products = 0
+    expected_components = 0
+    expected_features = 0
+
+    for product_mapping in mapping.get("hierarchy", []):
+        if product_mapping.get("newName"):
+            expected_products += 1
+        for comp_mapping in product_mapping.get("components", []):
+            if comp_mapping.get("newName"):
+                expected_components += 1
+            for feat_mapping in comp_mapping.get("features", []):
+                if feat_mapping.get("newName"):
+                    expected_features += 1
+
+    return {
+        "products": expected_products,
+        "components": expected_components,
+        "features": expected_features,
+    }
+
+
+def compute_renameable_counts(
+    mapping: dict[str, Any],
+    hierarchy: dict[str, Any],
+) -> dict[str, int]:
+    """Count how many entities can actually be renamed based on what exists."""
+    products = hierarchy["products"]
+    components_by_parent = hierarchy["components_by_parent"]
+    features_by_parent = hierarchy["features_by_parent"]
+
+    renameable_products = 0
+    renameable_components = 0
+    renameable_features = 0
+
+    for product_mapping in mapping.get("hierarchy", []):
+        product_pos = product_mapping.get("position", 0) - 1
+        if product_mapping.get("newName") and 0 <= product_pos < len(products):
+            renameable_products += 1
+            product = products[product_pos]
+            product_id = product.get("id")
+            product_components = components_by_parent.get(product_id, [])
+
+            for comp_mapping in product_mapping.get("components", []):
+                comp_pos = comp_mapping.get("position", 0) - 1
+                if comp_mapping.get("newName") and 0 <= comp_pos < len(product_components):
+                    renameable_components += 1
+                    component = product_components[comp_pos]
+                    component_id = component.get("id")
+                    component_features = features_by_parent.get(component_id, [])
+
+                    for feat_mapping in comp_mapping.get("features", []):
+                        feat_pos = feat_mapping.get("position", 0) - 1
+                        if feat_mapping.get("newName") and 0 <= feat_pos < len(component_features):
+                            renameable_features += 1
+
+    return {
+        "products": renameable_products,
+        "components": renameable_components,
+        "features": renameable_features,
+    }
+
+
+def print_preflight_summary(
+    hierarchy: dict[str, Any],
+    expected: dict[str, int],
+    renameable: dict[str, int],
+) -> None:
+    """Print a summary comparing the space hierarchy to mapping expectations."""
+    products = hierarchy["products"]
+    total_components = sum(len(c) for c in hierarchy["components_by_parent"].values())
+    total_features = sum(len(f) for f in hierarchy["features_by_parent"].values())
+
+    print("\nPre-flight check:")
+    print(f"  Your space:      {len(products)} products, {total_components} components, {total_features} features")
+    print(f"  Mapping expects: {expected['products']} products, {expected['components']} components, {expected['features']} features")
+    print(f"  Will rename:     {renameable['products']} products, {renameable['components']} components, {renameable['features']} features")
+
+    total_expected = expected["products"] + expected["components"] + expected["features"]
+    total_renameable = renameable["products"] + renameable["components"] + renameable["features"]
+
+    if total_renameable < total_expected:
+        print(f"\n  ⚠ Note: {total_expected - total_renameable} entities in mapping exceed your hierarchy positions")
+
+
+def get_selection_file_path(mapping_file: str) -> Path:
+    """Get path to the selection file for a given mapping file."""
+    mapping_path = Path(mapping_file).resolve()
+    return mapping_path.parent / f".{mapping_path.stem}_selection.json"
+
+
+def save_selection(mapping_file: str, product_positions: list[int]) -> None:
+    """Save product position selection to a file."""
+    selection_path = get_selection_file_path(mapping_file)
+    with open(selection_path, "w", encoding="utf-8") as f:
+        json.dump({"product_positions": product_positions}, f)
+    print(f"\n✓ Selection saved to {selection_path}")
+
+
+def load_selection(mapping_file: str) -> list[int] | None:
+    """Load product position selection from file if it exists."""
+    selection_path = get_selection_file_path(mapping_file)
+    if not selection_path.exists():
+        return None
+    try:
+        with open(selection_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("product_positions")
+    except (json.JSONDecodeError, KeyError):
+        return None
+
+
+def display_products_for_selection(
+    hierarchy: dict[str, Any],
+    mapping: dict[str, Any],
+) -> None:
+    """Display products in the space for user selection."""
+    products = hierarchy["products"]
+    components_by_parent = hierarchy["components_by_parent"]
+
+    num_mapping_products = len(mapping.get("hierarchy", []))
+
+    print(f"\nYour space has {len(products)} products:")
+    print("-" * 50)
+
+    for i, product in enumerate(products):
+        product_id = product.get("id")
+        product_name = get_entity_name(product)
+        num_components = len(components_by_parent.get(product_id, []))
+        print(f"  {i + 1}. {product_name} ({num_components} components)")
+
+    print("-" * 50)
+    print(f"\nMapping needs {num_mapping_products} products.")
+
+    # Show what each mapping slot expects
+    print("\nMapping structure:")
+    for idx, prod_map in enumerate(mapping.get("hierarchy", []), 1):
+        new_name = prod_map.get("newName", "(unnamed)")
+        num_comps = len(prod_map.get("components", []))
+        print(f"  Slot {idx}: \"{new_name}\" ({num_comps} components)")
+
+
+def interactive_select(
+    hierarchy: dict[str, Any],
+    mapping: dict[str, Any],
+    mapping_file: str,
+) -> None:
+    """Run interactive product selection mode."""
+    display_products_for_selection(hierarchy, mapping)
+
+    num_mapping_products = len(mapping.get("hierarchy", []))
+
+    print(f"\nSelect {num_mapping_products} products to rename (e.g., \"1,3\" or \"1 3\"):")
+    try:
+        user_input = input("> ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print("\nSelection cancelled.")
+        sys.exit(0)
+
+    # Parse input - support comma or space separated
+    parts = user_input.replace(",", " ").split()
+    try:
+        positions = [int(p) for p in parts]
+    except ValueError:
+        print("Error: Please enter numbers only (e.g., \"1,3\" or \"1 3\")", file=sys.stderr)
+        sys.exit(1)
+
+    # Validate positions
+    num_products = len(hierarchy["products"])
+    for pos in positions:
+        if pos < 1 or pos > num_products:
+            print(f"Error: Position {pos} is out of range (1-{num_products})", file=sys.stderr)
+            sys.exit(1)
+
+    if len(positions) != num_mapping_products:
+        print(f"Warning: You selected {len(positions)} products but mapping expects {num_mapping_products}.")
+        print("Proceeding with your selection...")
+
+    save_selection(mapping_file, positions)
+    print(f"\nNow run with --dry-run or --apply to execute.")
+
+
+def remap_positions(mapping: dict[str, Any], selected_positions: list[int]) -> dict[str, Any]:
+    """Update mapping to use selected product positions."""
+    new_mapping = mapping.copy()
+    new_hierarchy = []
+
+    for idx, prod_map in enumerate(mapping.get("hierarchy", [])):
+        if idx < len(selected_positions):
+            new_prod = prod_map.copy()
+            new_prod["position"] = selected_positions[idx]
+            new_hierarchy.append(new_prod)
+        else:
+            new_hierarchy.append(prod_map)
+
+    new_mapping["hierarchy"] = new_hierarchy
+    return new_mapping
+
+
 def process_hierarchy(
     mapping: dict[str, Any],
     hierarchy: dict[str, Any],
@@ -353,6 +555,11 @@ def main() -> None:
     parser.add_argument("mapping_file", help="Path to the JSON mapping file")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(
+        "--select",
+        action="store_true",
+        help="Interactively select which products to rename",
+    )
+    group.add_argument(
         "--dry-run",
         action="store_true",
         help="Preview changes without applying them",
@@ -376,13 +583,32 @@ def main() -> None:
     customer = mapping.get("customer", "Unknown")
 
     print(f"Customer: {customer}")
-    print(f"Mode: {'APPLY' if args.apply else 'DRY-RUN'}")
+    if args.select:
+        print("Mode: SELECT")
+    else:
+        print(f"Mode: {'APPLY' if args.apply else 'DRY-RUN'}")
     print("-" * 60)
 
     # Fetch and build hierarchy
     hierarchy = build_hierarchy(token, debug=args.debug)
 
-    print("-" * 60)
+    # Handle --select mode
+    if args.select:
+        interactive_select(hierarchy, mapping, args.mapping_file)
+        sys.exit(0)
+
+    # Check for saved selection and remap if found
+    saved_selection = load_selection(args.mapping_file)
+    if saved_selection:
+        print(f"\nUsing saved selection: products {saved_selection}")
+        mapping = remap_positions(mapping, saved_selection)
+
+    # Pre-flight summary
+    expected = compute_mapping_expectations(mapping)
+    renameable = compute_renameable_counts(mapping, hierarchy)
+    print_preflight_summary(hierarchy, expected, renameable)
+
+    print("\n" + "-" * 60)
     print("Processing updates by position...")
 
     stats = process_hierarchy(mapping, hierarchy, token, args.apply)
@@ -396,6 +622,12 @@ def main() -> None:
 
     if not args.apply and stats["updated"] > 0:
         print("\nThis was a dry-run. Use --apply to execute updates.")
+
+    # Exit codes: 0=success, 1=errors occurred
+    if stats["errors"] > 0:
+        sys.exit(1)
+    else:
+        sys.exit(0)
 
 
 if __name__ == "__main__":
