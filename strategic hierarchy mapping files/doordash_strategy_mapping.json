@@ -1,0 +1,37 @@
+{
+  "customer": "DoorDash",
+  "objectives": [
+    {
+      "position": 1,
+      "newName": "Accelerate DashPass Subscription Growth",
+      "keyResults": [
+        {"position": 1, "newName": "Grow DashPass subscriber base to 35M active members by EOY."},
+        {"position": 2, "newName": "Increase DashPass order frequency by 20% through member-exclusive features."}
+      ]
+    },
+    {
+      "position": 2,
+      "newName": "Expand Merchant Commerce Platform Adoption",
+      "keyResults": [
+        {"position": 1, "newName": "Onboard 50,000 new merchants to Storefront commission-free ordering."},
+        {"position": 2, "newName": "Increase merchant retention rate to 90% through improved analytics tools."}
+      ]
+    },
+    {
+      "position": 3,
+      "newName": "Drive Multi-Vertical Delivery Growth",
+      "keyResults": [
+        {"position": 1, "newName": "Grow grocery and convenience orders by 40% year-over-year."},
+        {"position": 2, "newName": "Launch package pickup service in 50 new metro areas."}
+      ]
+    }
+  ],
+  "initiatives": [
+    {"position": 1, "newName": "AI-Powered Personalization Engine"},
+    {"position": 2, "newName": "Merchant Self-Service Analytics"},
+    {"position": 3, "newName": "Real-Time Dasher Optimization"},
+    {"position": 4, "newName": "Cross-Platform Loyalty Ecosystem"},
+    {"position": 5, "newName": "Enterprise Catering Expansion"},
+    {"position": 6, "newName": "International Market Unification"}
+  ]
+}

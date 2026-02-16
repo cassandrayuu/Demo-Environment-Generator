@@ -1,0 +1,24 @@
+Line-Item Digitization
+Automated GL Coding
+Intelligent PO Matching
+PHI Redaction for Healthcare
+Multi-Level Routing Logic
+Mobile Approval App
+Approval Reminders & Nudges
+Audit Trail Logging
+Price Variation "Hot List"
+Real-Time Cash Flow Dashboard
+Ottimate Copilot (AI Chat)
+Vendor Performance Analytics
+Virtual Card Issuance
+ACH & Check Fulfillment
+Multi-Currency Support
+Payment Scheduling
+Bi-Directional Sage/NetSuite Sync
+Direct-to-Voucher Linking
+API Connector Framework
+Inventory System Mapping
+Employee Reimbursements
+Corporate Card Controls
+Reconciliation Engine
+Recurring Subscription Tracking
