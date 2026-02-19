@@ -1,4 +1,5 @@
 {
+  "_comment": "STRUCTURE REQUIREMENTS: Exactly 3 objectives, 2 key results per objective, 6 initiatives. DO NOT exceed these limits.",
   "customer": "CUSTOMER_NAME",
   "objectives": [
     {

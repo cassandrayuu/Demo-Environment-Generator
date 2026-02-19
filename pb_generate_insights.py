@@ -142,6 +142,20 @@ SAMPLE_COMPANIES_BY_TARGET = {
         "KPMG Law",                 # Big 4 legal services
         "Baker McKenzie",           # Global law firm
         "Latham & Watkins"          # Major law firm
+    ],
+    "salesforce": [
+        "Coca-Cola Company",        # Major Salesforce enterprise customer
+        "T-Mobile",                 # Telecom using Sales & Service Cloud
+        "Unilever",                 # CPG giant on Salesforce platform
+        "Toyota Financial Services", # Financial services customer
+        "American Express"          # Financial services & CRM customer
+    ],
+    "productboard": [
+        "Zendesk",                  # Customer service platform using Productboard
+        "UiPath",                   # Automation company, Productboard customer
+        "Avast",                    # Cybersecurity company using Productboard
+        "Microsoft (Xbox)",         # Gaming division uses Productboard
+        "Booking.com"               # Travel platform, Productboard customer
     ]
 }
 

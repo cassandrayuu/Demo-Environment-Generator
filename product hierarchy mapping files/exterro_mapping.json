@@ -1,0 +1,77 @@
+{
+  "customer": "Exterro",
+  "hierarchy": [
+    {
+      "position": 1,
+      "newName": "E-Discovery Suite",
+      "components": [
+        {
+          "position": 1,
+          "newName": "Legal Hold & Preservation",
+          "features": [
+            { "position": 1, "newName": "Legal Hold Management" },
+            { "position": 2, "newName": "Custodian Interview Automation" },
+            { "position": 3, "newName": "In-Place Preservation" },
+            { "position": 4, "newName": "Employee Change Monitor" }
+          ]
+        },
+        {
+          "position": 2,
+          "newName": "Collection & Processing",
+          "features": [
+            { "position": 1, "newName": "Data Collection" },
+            { "position": 2, "newName": "Early Case Assessment" },
+            { "position": 3, "newName": "E-Discovery Data Management" },
+            { "position": 4, "newName": "Remote Mobile Discovery" }
+          ]
+        },
+        {
+          "position": 3,
+          "newName": "Review & Production",
+          "features": [
+            { "position": 1, "newName": "Document Review & Analysis" },
+            { "position": 2, "newName": "Technology Assisted Review" },
+            { "position": 3, "newName": "Predictive Coding" },
+            { "position": 4, "newName": "Production Management" }
+          ]
+        }
+      ]
+    },
+    {
+      "position": 2,
+      "newName": "Digital Forensics Suite (FTK)",
+      "components": [
+        {
+          "position": 1,
+          "newName": "Evidence Collection",
+          "features": [
+            { "position": 1, "newName": "FTK Imager" },
+            { "position": 2, "newName": "Full-Disk Image Collection" },
+            { "position": 3, "newName": "FTK Imager Pro Mobile" },
+            { "position": 4, "newName": "Remote Evidence Collection" }
+          ]
+        },
+        {
+          "position": 2,
+          "newName": "Processing & Analysis",
+          "features": [
+            { "position": 1, "newName": "FTK Lab" },
+            { "position": 2, "newName": "Digital Evidence Processing" },
+            { "position": 3, "newName": "Image Recognition Analysis" },
+            { "position": 4, "newName": "Exterro Intelligence AI" }
+          ]
+        },
+        {
+          "position": 3,
+          "newName": "Enterprise Forensics",
+          "features": [
+            { "position": 1, "newName": "FTK Central" },
+            { "position": 2, "newName": "FTK Enterprise" },
+            { "position": 3, "newName": "FTK Connect" },
+            { "position": 4, "newName": "Forensic Case Review" }
+          ]
+        }
+      ]
+    }
+  ]
+}

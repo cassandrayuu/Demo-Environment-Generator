@@ -20,12 +20,14 @@ export PB_TOKEN="your-productboard-api-token"
 ### 2. Generate Files for a New Company
 
 In Nimbalyst, ask Claude:
-> "Generate hierarchies for [Company Name] [website.com]"
+> "Generate POC files for [Company Name] [website.com]"
+
+**IMPORTANT:** All mapping files must have exactly **2 products** with **3 components each** (4 features per component) to match the Productboard demo space structure.
 
 This creates three files:
-- `product hierarchy mapping files/<company>_mapping.json`
-- `strategic hierarchy mapping files/<company>_strategy_mapping.json`
-- `insights mapping files/<company>_features.txt`
+- `product hierarchy mapping files/<company>_mapping.json` - 2 products, 3 components each, 4 features per component
+- `strategic hierarchy mapping files/<company>_strategy_mapping.json` - 4 objectives with 2 key results each, 6 initiatives
+- `insights mapping files/<company>_features.txt` - ~20 feature names for insight generation
 
 ### 3. Select Which Products to Rename
 
@@ -146,23 +148,34 @@ hierarchy_sync_project/
 
 ### Product Hierarchy (`<company>_mapping.json`)
 
+**Must have exactly 2 products, 3 components each, 4 features per component.**
+
 ```json
 {
   "customer": "CompanyName",
   "hierarchy": [
     {
       "position": 1,
-      "newName": "Product Name",
+      "newName": "Product 1 Name",
       "components": [
         {
           "position": 1,
           "newName": "Component Name",
           "features": [
-            { "position": 1, "newName": "Feature Name" },
-            { "position": 2, "newName": "Feature Name" }
+            { "position": 1, "newName": "Feature 1" },
+            { "position": 2, "newName": "Feature 2" },
+            { "position": 3, "newName": "Feature 3" },
+            { "position": 4, "newName": "Feature 4" }
           ]
-        }
+        },
+        { "position": 2, "newName": "Component 2", "features": [...] },
+        { "position": 3, "newName": "Component 3", "features": [...] }
       ]
+    },
+    {
+      "position": 2,
+      "newName": "Product 2 Name",
+      "components": [...]
     }
   ]
 }

@@ -1,4 +1,5 @@
 {
+  "_comment": "STRUCTURE REQUIREMENTS: Exactly 2 products, 3 components per product, 4 features per component. Total: 2 products, 6 components, 24 features. DO NOT exceed these limits.",
   "customer": "COMPANY_NAME",
   "hierarchy": [
     {

@@ -1,0 +1,36 @@
+# Exterro Features
+# -----------------
+# Key features for Exterro's e-discovery, forensics, and privacy platform
+
+Legal Hold Management
+Custodian Interview Automation
+In-Place Preservation
+Early Case Assessment
+Data Collection & Processing
+E-Discovery Data Management
+Document Review & Analysis
+Employee Change Monitor
+Request Management Portal
+FOIA & Public Records Response
+Smart Breach Review
+FTK Forensic Toolkit
+Full-Disk Image Collection
+Digital Evidence Processing
+Forensic Case Review
+Mobile Device Analysis
+Remote Mobile Discovery
+OptiX360 Data Discovery
+Automated Data Mapping
+Data Retention Management
+RoPA Manager
+Privacy Assessments Manager
+Consent Management
+Data Subject Rights Portal
+Exterro Intelligence AI
+Generative AI Classification
+Image Recognition Analysis
+Cross-Matter Analytics
+Predictive Coding
+Technology Assisted Review
+Production Management
+Compliance Reporting Dashboard
