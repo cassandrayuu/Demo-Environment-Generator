@@ -24,25 +24,20 @@ In Nimbalyst, ask Claude:
 
 **IMPORTANT:** All mapping files must have exactly **2 products** with **3 components each** (4 features per component) to match the Productboard demo space structure.
 
-This creates three files:
-- `product hierarchy mapping files/<company>_mapping.json` - 2 products, 3 components each, 4 features per component
-- `strategic hierarchy mapping files/<company>_strategy_mapping.json` - 4 objectives with 2 key results each, 6 initiatives
-- `insights mapping files/<company>_features.txt` - ~20 feature names for insight generation
+This creates three files in `prospects/<company>/`:
+- `product_mapping.json` - 2 products, 3 components each, 4 features per component
+- `strategy_mapping.json` - 3 objectives with 2 key results each, 6 initiatives
+- `features.txt` - ~20 feature names for insight generation
 
 ### 3. Select Which Products to Rename
 
 Since each Productboard space may have different products, you need to select which ones to rename:
 
 ```bash
-python3 pb_rename_hierarchy.py "product hierarchy mapping files/<company>_mapping.json" --select
+python3 pb_rename_hierarchy.py "prospects/<company>/product_mapping.json" --select
 ```
 
-This shows your space's products and lets you choose which to rename:
-```bash
-cd ~/hierarchy_sync_project
-source venv/bin/activate
-pip install requests
-```
+This shows your space's products and lets you choose which to rename.
 
 ### 4. Run the POC Setup
 
@@ -72,17 +67,17 @@ source venv/bin/activate
 export PB_TOKEN="your-token"
 
 # 2. Generate files (in Nimbalyst)
-# Ask Claude: "Generate POC files for HL Agency https://hl.agency"
+# Ask Claude: "Generate POC files for Comcast https://comcast.com"
 
 # 3. Select products for your space
-python3 pb_rename_hierarchy.py "product hierarchy mapping files/hl_agency_mapping.json" --select
+python3 pb_rename_hierarchy.py "prospects/comcast/product_mapping.json" --select
 # Enter: 1,3 (or whichever products fit your space)
 
 # 4. Preview changes
-python3 pb_poc_setup.py --company "HL Agency" --website "https://hl.agency" --dry-run
+python3 pb_poc_setup.py --company "Comcast" --website "https://comcast.com" --dry-run
 
 # 5. Apply changes
-python3 pb_poc_setup.py --company "HL Agency" --website "https://hl.agency" --apply
+python3 pb_poc_setup.py --company "Comcast" --website "https://comcast.com" --apply
 ```
 
 ---
@@ -94,28 +89,28 @@ You can also run each script separately:
 ### Product Hierarchy
 ```bash
 # Preview
-python3 pb_rename_hierarchy.py "product hierarchy mapping files/<company>_mapping.json" --dry-run
+python3 pb_rename_hierarchy.py "prospects/<company>/product_mapping.json" --dry-run
 
 # Apply
-python3 pb_rename_hierarchy.py "product hierarchy mapping files/<company>_mapping.json" --apply
+python3 pb_rename_hierarchy.py "prospects/<company>/product_mapping.json" --apply
 ```
 
 ### Strategic Hierarchy
 ```bash
 # Preview
-python3 pb_rename_strategy.py "strategic hierarchy mapping files/<company>_strategy_mapping.json" --dry-run
+python3 pb_rename_strategy.py "prospects/<company>/strategy_mapping.json" --dry-run
 
 # Apply
-python3 pb_rename_strategy.py "strategic hierarchy mapping files/<company>_strategy_mapping.json" --apply
+python3 pb_rename_strategy.py "prospects/<company>/strategy_mapping.json" --apply
 ```
 
 ### User Insights
 ```bash
 # Preview
-python3 pb_generate_insights.py --company "<Company>" --features "insights mapping files/<company>_features.txt" --dry-run
+python3 pb_generate_insights.py --company "<Company>" --features "prospects/<company>/features.txt" --dry-run
 
 # Apply
-python3 pb_generate_insights.py --company "<Company>" --features "insights mapping files/<company>_features.txt" --apply
+python3 pb_generate_insights.py --company "<Company>" --features "prospects/<company>/features.txt" --apply
 ```
 
 ---
@@ -124,29 +119,31 @@ python3 pb_generate_insights.py --company "<Company>" --features "insights mappi
 
 ```
 hierarchy_sync_project/
-├── pb_poc_setup.py                     # Orchestrator - runs all three steps
-├── pb_rename_hierarchy.py              # Product hierarchy rename script
-├── pb_rename_strategy.py               # Strategic hierarchy rename script
-├── pb_generate_insights.py             # User insights generator
-├── venv/                               # Python virtual environment
-├── product hierarchy mapping files/
-│   ├── mapping_template.json           # Template
-│   ├── hl_agency_mapping.json
-│   └── ottimate_mapping.json
-├── strategic hierarchy mapping files/
-│   ├── strategy_mapping_template.json  # Template
-│   ├── hl_agency_strategy_mapping.json
-│   └── ottimate_strategy_mapping.json
-└── insights mapping files/
-    ├── hl_agency_features.txt
-    └── ottimate_features.txt
+├── pb_poc_setup.py                 # Orchestrator - runs all three steps
+├── pb_rename_hierarchy.py          # Product hierarchy rename script
+├── pb_rename_strategy.py           # Strategic hierarchy rename script
+├── pb_generate_insights.py         # User insights generator
+├── venv/                           # Python virtual environment
+└── prospects/
+    ├── _templates/                 # Template files for new prospects
+    │   ├── product_mapping.json
+    │   ├── strategy_mapping.json
+    │   └── features.txt
+    ├── comcast/
+    │   ├── product_mapping.json
+    │   ├── strategy_mapping.json
+    │   └── features.txt
+    └── exterro/
+        ├── product_mapping.json
+        ├── strategy_mapping.json
+        └── features.txt
 ```
 
 ---
 
 ## JSON Mapping File Formats
 
-### Product Hierarchy (`<company>_mapping.json`)
+### Product Hierarchy (`product_mapping.json`)
 
 **Must have exactly 2 products, 3 components each, 4 features per component.**
 
@@ -181,7 +178,7 @@ hierarchy_sync_project/
 }
 ```
 
-### Strategic Hierarchy (`<company>_strategy_mapping.json`)
+### Strategic Hierarchy (`strategy_mapping.json`)
 
 ```json
 {
@@ -203,7 +200,7 @@ hierarchy_sync_project/
 }
 ```
 
-### Features List (`<company>_features.txt`)
+### Features List (`features.txt`)
 
 One feature name per line:
 ```

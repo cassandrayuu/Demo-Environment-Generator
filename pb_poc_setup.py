@@ -33,11 +33,12 @@ def check_pb_token() -> bool:
 def get_file_paths(company: str, base_dir: Path) -> dict:
     """Determine file paths based on company name."""
     normalized = normalize_company_name(company)
+    prospect_dir = base_dir / "prospects" / normalized
 
     return {
-        "mapping_json": base_dir / "product hierarchy mapping files" / f"{normalized}_mapping.json",
-        "strategy_json": base_dir / "strategic hierarchy mapping files" / f"{normalized}_strategy_mapping.json",
-        "features_txt": base_dir / "insights mapping files" / f"{normalized}_features.txt"
+        "mapping_json": prospect_dir / "product_mapping.json",
+        "strategy_json": prospect_dir / "strategy_mapping.json",
+        "features_txt": prospect_dir / "features.txt"
     }
 
 
