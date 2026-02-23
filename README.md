@@ -8,7 +8,7 @@ Generate and apply best-practice demo hierarchies for prospect companies in Prod
 
 ```bash
 # Navigate to project
-cd ~/hierarchy_sync_project
+cd ~/Workspace/hierarchy_sync_project
 
 # Activate virtual environment
 source venv/bin/activate
@@ -62,7 +62,7 @@ The orchestrator runs three steps:
 
 ```bash
 # 1. Setup
-cd ~/hierarchy_sync_project
+cd ~/Workspace/hierarchy_sync_project
 source venv/bin/activate
 export PB_TOKEN="your-token"
 
