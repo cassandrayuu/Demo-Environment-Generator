@@ -14,7 +14,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 import requests
 
@@ -35,8 +35,8 @@ def make_request(
     method: str,
     url: str,
     token: str,
-    json_data: dict[str, Any] | None = None,
-    params: dict[str, Any] | None = None,
+    json_data: Optional[Dict[str, Any]] = None,
+    params: Optional[Dict[str, Any]] = None,
 ) -> requests.Response:
     """Make HTTP request with retry logic for 429 and 5xx errors."""
     headers = {
@@ -79,11 +79,11 @@ def make_request(
     return response
 
 
-def fetch_all_entities(token: str, entity_type: str) -> list[dict[str, Any]]:
+def fetch_all_entities(token: str, entity_type: str) -> List[Dict[str, Any]]:
     """Fetch all entities of a given type with pagination."""
     entities = []
     url = f"{API_BASE}/entities"
-    params = {"type": entity_type}
+    params = {"type[]": entity_type}
 
     while url:
         response = make_request("GET", url, token, params=params)
@@ -104,12 +104,12 @@ def fetch_all_entities(token: str, entity_type: str) -> list[dict[str, Any]]:
     return entities
 
 
-def get_entity_name(entity: dict[str, Any]) -> str:
+def get_entity_name(entity: Dict[str, Any]) -> str:
     """Extract name from entity."""
     return entity.get("name", "") or entity.get("fields", {}).get("name", "")
 
 
-def get_child_ids(entity: dict[str, Any], child_type: str) -> list[str]:
+def get_child_ids(entity: Dict[str, Any], child_type: str) -> List[str]:
     """Extract child IDs from entity relationships."""
     child_ids = []
     relationships = entity.get("relationships", {})
@@ -126,7 +126,7 @@ def get_child_ids(entity: dict[str, Any], child_type: str) -> list[str]:
     return child_ids
 
 
-def build_hierarchy(token: str, debug: bool = False) -> dict[str, Any]:
+def build_hierarchy(token: str, debug: bool = False) -> Dict[str, Any]:
     """
     Fetch all products, components, and features, then build a hierarchy tree.
     Returns a dict with products sorted by name, each containing sorted components,
@@ -159,7 +159,7 @@ def build_hierarchy(token: str, debug: bool = False) -> dict[str, Any]:
     products.sort(key=lambda p: get_entity_name(p).lower())
 
     # Build component lookup by parent product ID (using parent's child references)
-    components_by_parent: dict[str, list[dict]] = {}
+    components_by_parent: Dict[str, List[dict]] = {}
     for product in products:
         product_id = product.get("id")
         child_component_ids = get_child_ids(product, "component")
@@ -172,7 +172,7 @@ def build_hierarchy(token: str, debug: bool = False) -> dict[str, Any]:
         components_by_parent[product_id] = product_components
 
     # Build feature lookup by parent component ID (using parent's child references)
-    features_by_parent: dict[str, list[dict]] = {}
+    features_by_parent: Dict[str, List[dict]] = {}
     for comp in components:
         comp_id = comp.get("id")
         child_feature_ids = get_child_ids(comp, "feature")
@@ -212,7 +212,7 @@ def update_entity(token: str, entity_id: str, new_name: str) -> bool:
     return False
 
 
-def load_mapping(filepath: str) -> dict[str, Any]:
+def load_mapping(filepath: str) -> Dict[str, Any]:
     """Load and validate the JSON mapping file."""
     try:
         with open(filepath, "r", encoding="utf-8") as f:
@@ -231,7 +231,7 @@ def load_mapping(filepath: str) -> dict[str, Any]:
     return data
 
 
-def compute_mapping_expectations(mapping: dict[str, Any]) -> dict[str, int]:
+def compute_mapping_expectations(mapping: Dict[str, Any]) -> Dict[str, int]:
     """Count how many entities the mapping expects to rename."""
     expected_products = 0
     expected_components = 0
@@ -255,9 +255,9 @@ def compute_mapping_expectations(mapping: dict[str, Any]) -> dict[str, int]:
 
 
 def compute_renameable_counts(
-    mapping: dict[str, Any],
-    hierarchy: dict[str, Any],
-) -> dict[str, int]:
+    mapping: Dict[str, Any],
+    hierarchy: Dict[str, Any],
+) -> Dict[str, int]:
     """Count how many entities can actually be renamed based on what exists."""
     products = hierarchy["products"]
     components_by_parent = hierarchy["components_by_parent"]
@@ -296,9 +296,9 @@ def compute_renameable_counts(
 
 
 def print_preflight_summary(
-    hierarchy: dict[str, Any],
-    expected: dict[str, int],
-    renameable: dict[str, int],
+    hierarchy: Dict[str, Any],
+    expected: Dict[str, int],
+    renameable: Dict[str, int],
 ) -> None:
     """Print a summary comparing the space hierarchy to mapping expectations."""
     products = hierarchy["products"]
@@ -323,7 +323,7 @@ def get_selection_file_path(mapping_file: str) -> Path:
     return mapping_path.parent / f".{mapping_path.stem}_selection.json"
 
 
-def save_selection(mapping_file: str, product_positions: list[int]) -> None:
+def save_selection(mapping_file: str, product_positions: List[int]) -> None:
     """Save product position selection to a file."""
     selection_path = get_selection_file_path(mapping_file)
     with open(selection_path, "w", encoding="utf-8") as f:
@@ -331,7 +331,7 @@ def save_selection(mapping_file: str, product_positions: list[int]) -> None:
     print(f"\n✓ Selection saved to {selection_path}")
 
 
-def load_selection(mapping_file: str) -> list[int] | None:
+def load_selection(mapping_file: str) -> Optional[List[int]]:
     """Load product position selection from file if it exists."""
     selection_path = get_selection_file_path(mapping_file)
     if not selection_path.exists():
@@ -345,8 +345,8 @@ def load_selection(mapping_file: str) -> list[int] | None:
 
 
 def display_products_for_selection(
-    hierarchy: dict[str, Any],
-    mapping: dict[str, Any],
+    hierarchy: Dict[str, Any],
+    mapping: Dict[str, Any],
 ) -> None:
     """Display products in the space for user selection."""
     products = hierarchy["products"]
@@ -375,8 +375,8 @@ def display_products_for_selection(
 
 
 def interactive_select(
-    hierarchy: dict[str, Any],
-    mapping: dict[str, Any],
+    hierarchy: Dict[str, Any],
+    mapping: Dict[str, Any],
     mapping_file: str,
 ) -> None:
     """Run interactive product selection mode."""
@@ -414,7 +414,7 @@ def interactive_select(
     print(f"\nNow run with --dry-run or --apply to execute.")
 
 
-def remap_positions(mapping: dict[str, Any], selected_positions: list[int]) -> dict[str, Any]:
+def remap_positions(mapping: Dict[str, Any], selected_positions: List[int]) -> Dict[str, Any]:
     """Update mapping to use selected product positions."""
     new_mapping = mapping.copy()
     new_hierarchy = []
@@ -432,11 +432,11 @@ def remap_positions(mapping: dict[str, Any], selected_positions: list[int]) -> d
 
 
 def process_hierarchy(
-    mapping: dict[str, Any],
-    hierarchy: dict[str, Any],
+    mapping: Dict[str, Any],
+    hierarchy: Dict[str, Any],
     token: str,
     apply: bool,
-) -> dict[str, int]:
+) -> Dict[str, int]:
     """Process the mapping and rename entities by position."""
     stats = {
         "updated": 0,

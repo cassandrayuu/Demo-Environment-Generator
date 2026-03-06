@@ -20,3 +20,4 @@ Thumbs.db
 
 # Project specific
 *.log
+node_modules/

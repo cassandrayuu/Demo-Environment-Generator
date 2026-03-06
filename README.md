@@ -2,18 +2,62 @@
 
 Generate and apply best-practice demo hierarchies for prospect companies in Productboard. Simply provide a company name and website, and AI generates product hierarchies, strategic hierarchies, and user insights tailored to that company.
 
-## Quick Start
+## Architecture
+
+```
+┌─────────────────────┐     ┌──────────────────────┐     ┌─────────────────────┐
+│   React Frontend    │────▶│  Cloudflare Worker   │────▶│   Python Runner     │
+│   (CF Pages)        │     │  (Edge API + Auth)   │     │   (Railway/FastAPI) │
+└─────────────────────┘     └──────────────────────┘     └─────────────────────┘
+                                      │
+                                      ▼
+                            ┌──────────────────────┐
+                            │    Cloudflare D1     │
+                            │    (Job Records)     │
+                            └──────────────────────┘
+```
+
+## Quick Start (Web App - Local Development)
+
+### 1. Start the Python Runner
+
+```bash
+cd "/Users/cassandrayuu/Claude Projects/Workspace/hierarchy_sync_staging"
+source .venv/bin/activate
+PYTHONPATH=. uvicorn services.runner.main:app --reload --port 8000
+```
+
+The runner API will be available at http://localhost:8000/docs
+
+### 2. Start the React Frontend
+
+```bash
+cd apps/web
+npm install
+npm run dev
+```
+
+The web UI will be available at http://localhost:3000
+
+### 3. (Optional) Start the Cloudflare Worker
+
+```bash
+cd apps/worker
+npm install
+npm run dev
+```
+
+The worker API will be available at http://localhost:8787
+
+---
+
+## Quick Start (CLI - Original Scripts)
 
 ### 1. One-Time Setup
 
 ```bash
-# Navigate to project
-cd ~/Workspace/hierarchy_sync_project
-
-# Activate virtual environment
-source venv/bin/activate
-
-# Set your Productboard API token
+cd "/Users/cassandrayuu/Claude Projects/Workspace/hierarchy_sync_staging"
+source .venv/bin/activate
 export PB_TOKEN="your-productboard-api-token"
 ```
 
@@ -22,8 +66,6 @@ export PB_TOKEN="your-productboard-api-token"
 In Nimbalyst, ask Claude:
 > "Generate POC files for [Company Name] [website.com]"
 
-**IMPORTANT:** All mapping files must have exactly **2 products** with **3 components each** (4 features per component) to match the Productboard demo space structure.
-
 This creates three files in `prospects/<company>/`:
 - `product_mapping.json` - 2 products, 3 components each, 4 features per component
 - `strategy_mapping.json` - 3 objectives with 2 key results each, 6 initiatives
@@ -31,215 +73,193 @@ This creates three files in `prospects/<company>/`:
 
 ### 3. Select Which Products to Rename
 
-Since each Productboard space may have different products, you need to select which ones to rename:
-
 ```bash
 python3 pb_rename_hierarchy.py "prospects/<company>/product_mapping.json" --select
 ```
 
-This shows your space's products and lets you choose which to rename.
-
 ### 4. Run the POC Setup
 
-**Dry run (preview changes):**
 ```bash
+# Dry run (preview changes)
 python3 pb_poc_setup.py --company "<Company Name>" --website "<website.com>" --dry-run
-```
 
-**Apply changes:**
-```bash
+# Apply changes
 python3 pb_poc_setup.py --company "<Company Name>" --website "<website.com>" --apply
 ```
 
-The orchestrator runs three steps:
-1. **Step A:** Renames product hierarchy (products, components, features)
-2. **Step B:** Renames strategic hierarchy (objectives, key results, initiatives)
-3. **Step C:** Generates user insights (5 notes tagged with company name)
-
 ---
 
-## Complete Workflow Example
+## Project Structure
 
-```bash
-# 1. Setup
-cd ~/Workspace/hierarchy_sync_project
-source venv/bin/activate
-export PB_TOKEN="your-token"
-
-# 2. Generate files (in Nimbalyst)
-# Ask Claude: "Generate POC files for Comcast https://comcast.com"
-
-# 3. Select products for your space
-python3 pb_rename_hierarchy.py "prospects/comcast/product_mapping.json" --select
-# Enter: 1,3 (or whichever products fit your space)
-
-# 4. Preview changes
-python3 pb_poc_setup.py --company "Comcast" --website "https://comcast.com" --dry-run
-
-# 5. Apply changes
-python3 pb_poc_setup.py --company "Comcast" --website "https://comcast.com" --apply
 ```
-
----
-
-## Running Individual Scripts
-
-You can also run each script separately:
-
-### Product Hierarchy
-```bash
-# Preview
-python3 pb_rename_hierarchy.py "prospects/<company>/product_mapping.json" --dry-run
-
-# Apply
-python3 pb_rename_hierarchy.py "prospects/<company>/product_mapping.json" --apply
-```
-
-### Strategic Hierarchy
-```bash
-# Preview
-python3 pb_rename_strategy.py "prospects/<company>/strategy_mapping.json" --dry-run
-
-# Apply
-python3 pb_rename_strategy.py "prospects/<company>/strategy_mapping.json" --apply
-```
-
-### User Insights
-```bash
-# Preview
-python3 pb_generate_insights.py --company "<Company>" --features "prospects/<company>/features.txt" --dry-run
-
-# Apply
-python3 pb_generate_insights.py --company "<Company>" --features "prospects/<company>/features.txt" --apply
+hierarchy_sync_staging/
+├── core/                          # Python core modules
+│   ├── pb_client.py              # Productboard API client
+│   ├── generator.py              # AI mapping generation
+│   ├── hierarchy.py              # Product hierarchy operations
+│   ├── strategy.py               # Strategy operations
+│   ├── insights.py               # Note generation
+│   ├── runner.py                 # Orchestration
+│   └── validators.py             # Validation utilities
+│
+├── services/
+│   └── runner/                   # FastAPI service
+│       ├── main.py               # FastAPI app
+│       ├── routes/               # API endpoints
+│       ├── middleware/           # Auth middleware
+│       ├── schemas.py            # Pydantic models
+│       ├── Dockerfile            # Railway deployment
+│       └── requirements.txt
+│
+├── apps/
+│   ├── worker/                   # Cloudflare Worker
+│   │   ├── src/                  # TypeScript source
+│   │   ├── migrations/           # D1 migrations
+│   │   ├── wrangler.toml         # Wrangler config
+│   │   └── package.json
+│   │
+│   └── web/                      # React frontend
+│       ├── src/
+│       │   ├── pages/            # Page components
+│       │   ├── components/       # UI components
+│       │   ├── api/              # API client
+│       │   └── App.tsx
+│       ├── vite.config.ts
+│       └── package.json
+│
+├── prospects/                    # Company mapping files
+│   ├── _templates/              # Template files
+│   └── <company>/               # Per-company files
+│
+├── pb_poc_setup.py              # CLI orchestrator
+├── pb_rename_hierarchy.py       # CLI hierarchy rename
+├── pb_rename_strategy.py        # CLI strategy rename
+└── pb_generate_insights.py      # CLI insights generator
 ```
 
 ---
 
-## File Structure
+## API Endpoints
 
+### Runner API (FastAPI - Port 8000)
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/health` | GET | Health check |
+| `/products/list` | POST | List products in PB space |
+| `/mappings/generate` | POST | AI-generate mapping files |
+| `/run` | POST | Execute POC setup |
+| `/validate` | POST | Preflight validation |
+
+### Worker API (Cloudflare - Port 8787)
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/api/products/list` | POST | Proxy to runner |
+| `/api/mappings/generate` | POST | Proxy to runner |
+| `/api/jobs` | POST | Create and execute job |
+| `/api/jobs/:id` | GET | Get job status |
+| `/api/jobs` | GET | List recent jobs |
+
+---
+
+## Deployment
+
+### Python Runner (Railway)
+
+1. Create a new Railway project
+2. Connect the repository
+3. Set root directory to `/`
+4. Set build command: `pip install -r services/runner/requirements.txt`
+5. Set start command: `uvicorn services.runner.main:app --host 0.0.0.0 --port $PORT`
+6. Add environment variables:
+  - `RUNNER_SECRET` - Shared secret for auth
+  - `ANTHROPIC_API_KEY` - For AI generation
+
+### Cloudflare Worker
+
+```bash
+cd apps/worker
+npm install
+
+# Create D1 database
+wrangler d1 create pb-demo-db
+
+# Update wrangler.toml with database_id
+
+# Run migrations
+wrangler d1 migrations apply pb-demo-db --local
+
+# Deploy
+wrangler deploy
+
+# Set secrets
+wrangler secret put RUNNER_URL
+wrangler secret put RUNNER_SECRET
+wrangler secret put CF_ACCESS_TEAM_DOMAIN
 ```
-hierarchy_sync_project/
-├── pb_poc_setup.py                 # Orchestrator - runs all three steps
-├── pb_rename_hierarchy.py          # Product hierarchy rename script
-├── pb_rename_strategy.py           # Strategic hierarchy rename script
-├── pb_generate_insights.py         # User insights generator
-├── venv/                           # Python virtual environment
-└── prospects/
-    ├── _templates/                 # Template files for new prospects
-    │   ├── product_mapping.json
-    │   ├── strategy_mapping.json
-    │   └── features.txt
-    ├── comcast/
-    │   ├── product_mapping.json
-    │   ├── strategy_mapping.json
-    │   └── features.txt
-    └── exterro/
-        ├── product_mapping.json
-        ├── strategy_mapping.json
-        └── features.txt
+
+### React Frontend (Cloudflare Pages)
+
+```bash
+cd apps/web
+npm install
+npm run build
+
+# Deploy via Cloudflare Pages dashboard or:
+wrangler pages deploy dist
 ```
 
 ---
 
-## JSON Mapping File Formats
+## Environment Variables
 
-### Product Hierarchy (`product_mapping.json`)
+### Runner (Railway)
+| Variable | Description |
+| --- | --- |
+| `RUNNER_SECRET` | Shared secret for worker auth |
+| `ANTHROPIC_API_KEY` | Claude API key for AI generation |
+| `PORT` | Server port (default: 8000) |
 
-**Must have exactly 2 products, 3 components each, 4 features per component.**
+### Worker (Cloudflare)
+| Variable | Description |
+| --- | --- |
+| `RUNNER_URL` | Python runner base URL |
+| `RUNNER_SECRET` | Shared secret for runner auth |
+| `CF_ACCESS_TEAM_DOMAIN` | Cloudflare Access domain |
 
-```json
-{
-  "customer": "CompanyName",
-  "hierarchy": [
-    {
-      "position": 1,
-      "newName": "Product 1 Name",
-      "components": [
-        {
-          "position": 1,
-          "newName": "Component Name",
-          "features": [
-            { "position": 1, "newName": "Feature 1" },
-            { "position": 2, "newName": "Feature 2" },
-            { "position": 3, "newName": "Feature 3" },
-            { "position": 4, "newName": "Feature 4" }
-          ]
-        },
-        { "position": 2, "newName": "Component 2", "features": [...] },
-        { "position": 3, "newName": "Component 3", "features": [...] }
-      ]
-    },
-    {
-      "position": 2,
-      "newName": "Product 2 Name",
-      "components": [...]
-    }
-  ]
-}
-```
+### Frontend (Pages)
+| Variable | Description |
+| --- | --- |
+| `VITE_API_URL` | Worker API base URL |
 
-### Strategic Hierarchy (`strategy_mapping.json`)
+---
 
-```json
-{
-  "customer": "CompanyName",
-  "objectives": [
-    {
-      "position": 1,
-      "newName": "Objective Name",
-      "keyResults": [
-        {"position": 1, "newName": "Key Result 1"},
-        {"position": 2, "newName": "Key Result 2"}
-      ]
-    }
-  ],
-  "initiatives": [
-    {"position": 1, "newName": "Initiative 1"},
-    {"position": 2, "newName": "Initiative 2"}
-  ]
-}
-```
+## Mapping File Constraints
 
-### Features List (`features.txt`)
+**CRITICAL**: Files must match these exact structures or scripts will fail.
 
-One feature name per line:
-```
-Market Research & Insights
-Brand Positioning Framework
-Creative Brief Builder
-```
+### product_mapping.json
+- **2 products** total
+- **3 components** per product
+- **4 features** per component
+
+### strategy_mapping.json
+- **3 objectives** with **2 key results** each
+- **6 initiatives** total
+
+### features.txt
+- One feature name per line (10-25 recommended)
 
 ---
 
 ## Troubleshooting
 
-### "No module named 'requests'"
-```bash
-source venv/bin/activate
-```
-
-### "PB_TOKEN environment variable is not set"
-```bash
-export PB_TOKEN="your-token"
-```
-
-### "Position out of range"
-Your space has fewer products/components than the mapping expects. Use `--select` to choose which products to rename.
-
-### "This environment is externally managed"
-You need to use the virtual environment:
-```
-Your space has 3 products:
---------------------------------------------------
-  1. Privacy & Information Governance (3 components)
-  2. test product (1 component)
-  3. eDiscovery Platform (3 components)
---------------------------------------------------
-
-Mapping needs 2 products.
-
-Select 2 products to rename (e.g., "1,3" or "1 3"):
-> 1,3
-
-✓ Selection saved.
-```
+| Error | Fix |
+| --- | --- |
+| "No module named 'requests'" | `source .venv/bin/activate` |
+| "PB_TOKEN not set" | `export PB_TOKEN="your-token"` |
+| "Position out of range" | Use `--select` to choose products |
+| API rate limiting | Scripts auto-retry with backoff |
+| Invalid token (401) | Check your Productboard API token |
+| Insufficient permissions (403) | Ensure token has write access |

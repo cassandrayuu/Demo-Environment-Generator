@@ -12,7 +12,7 @@ import json
 import os
 import sys
 import time
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 import requests
 
@@ -38,8 +38,8 @@ def make_request(
     method: str,
     url: str,
     token: str,
-    json_data: dict[str, Any] | None = None,
-    params: dict[str, Any] | None = None,
+    json_data: Optional[Dict[str, Any]] = None,
+    params: Optional[Dict[str, Any]] = None,
 ) -> requests.Response:
     """Make HTTP request with retry logic for 429 and 5xx errors."""
     headers = {
@@ -85,8 +85,8 @@ def make_request(
 def fetch_all_paginated(
     token: str,
     url: str,
-    params: dict[str, Any] | None = None,
-) -> list[dict[str, Any]]:
+    params: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
     """Fetch all entities with pagination support."""
     entities = []
     current_params = params.copy() if params else {}
@@ -110,26 +110,26 @@ def fetch_all_paginated(
     return entities
 
 
-def fetch_objectives(token: str) -> list[dict[str, Any]]:
+def fetch_objectives(token: str) -> List[Dict[str, Any]]:
     """Fetch all objectives."""
     url = f"{API_BASE}/objectives"
     return fetch_all_paginated(token, url)
 
 
-def fetch_key_results(token: str, objective_id: str) -> list[dict[str, Any]]:
+def fetch_key_results(token: str, objective_id: str) -> List[Dict[str, Any]]:
     """Fetch key results for a specific objective."""
     url = f"{API_BASE}/key-results"
     params = {"objective.id": objective_id}
     return fetch_all_paginated(token, url, params)
 
 
-def fetch_initiatives(token: str) -> list[dict[str, Any]]:
+def fetch_initiatives(token: str) -> List[Dict[str, Any]]:
     """Fetch all initiatives (global list, not per-objective)."""
     url = f"{API_BASE}/initiatives"
     return fetch_all_paginated(token, url)
 
 
-def get_entity_name(entity: dict[str, Any]) -> str:
+def get_entity_name(entity: Dict[str, Any]) -> str:
     """Extract name from entity."""
     return entity.get("name", "") or ""
 
@@ -179,7 +179,7 @@ def update_initiative(token: str, initiative_id: str, new_name: str) -> bool:
     return False
 
 
-def load_mapping(filepath: str) -> dict[str, Any]:
+def load_mapping(filepath: str) -> Dict[str, Any]:
     """Load and validate the JSON mapping file."""
     try:
         with open(filepath, "r", encoding="utf-8") as f:
@@ -204,11 +204,11 @@ def load_mapping(filepath: str) -> dict[str, Any]:
 
 
 def process_objectives_and_key_results(
-    mapping: dict[str, Any],
-    objectives: list[dict[str, Any]],
+    mapping: Dict[str, Any],
+    objectives: List[Dict[str, Any]],
     token: str,
     apply: bool,
-) -> dict[str, int]:
+) -> Dict[str, int]:
     """Process objectives and their key results by position."""
     stats = {
         "updated": 0,
@@ -290,11 +290,11 @@ def process_objectives_and_key_results(
 
 
 def process_initiatives(
-    mapping: dict[str, Any],
-    initiatives: list[dict[str, Any]],
+    mapping: Dict[str, Any],
+    initiatives: List[Dict[str, Any]],
     token: str,
     apply: bool,
-) -> dict[str, int]:
+) -> Dict[str, int]:
     """Process initiatives as a flat global list by position."""
     stats = {
         "updated": 0,
@@ -336,7 +336,7 @@ def process_initiatives(
     return stats
 
 
-def merge_stats(stats1: dict[str, int], stats2: dict[str, int]) -> dict[str, int]:
+def merge_stats(stats1: Dict[str, int], stats2: Dict[str, int]) -> Dict[str, int]:
     """Merge two stats dictionaries."""
     return {key: stats1.get(key, 0) + stats2.get(key, 0) for key in stats1}
 
