@@ -24,7 +24,7 @@ export async function handleListProducts(
     }
 
     // Proxy to runner
-    const runnerResponse = await fetch(`${env.RUNNER_URL}/products/list`, {
+    const runnerResponse = await fetch(`${env.RUNNER_URL}/api/products/list`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -78,7 +78,7 @@ export async function handleAnalyzeSpace(
     }
 
     // Proxy to runner
-    const runnerResponse = await fetch(`${env.RUNNER_URL}/analyze`, {
+    const runnerResponse = await fetch(`${env.RUNNER_URL}/api/analyze`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

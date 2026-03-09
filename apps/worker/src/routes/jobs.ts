@@ -48,7 +48,7 @@ export async function handleRunJob(
     }
 
     // Proxy to runner with streaming
-    const runnerResponse = await fetch(`${env.RUNNER_URL}/run`, {
+    const runnerResponse = await fetch(`${env.RUNNER_URL}/api/run`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -132,7 +132,7 @@ export async function handleCreateJob(
 
     // Call runner to execute job (synchronously for MVP)
     try {
-      const runnerResponse = await fetch(`${env.RUNNER_URL}/run`, {
+      const runnerResponse = await fetch(`${env.RUNNER_URL}/api/run`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -10,6 +10,7 @@ export interface Env {
   RUNNER_URL: string;
   RUNNER_SECRET: string;
   CF_ACCESS_TEAM_DOMAIN?: string;
+  REQUIRE_CLOUDFLARE_ACCESS?: string; // "true" or "false"
   ENVIRONMENT: string;
 }
 

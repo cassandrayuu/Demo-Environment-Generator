@@ -24,7 +24,7 @@ export async function handleGenerateMappings(
     }
 
     // Proxy to runner
-    const runnerResponse = await fetch(`${env.RUNNER_URL}/mappings/generate`, {
+    const runnerResponse = await fetch(`${env.RUNNER_URL}/api/mappings/generate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

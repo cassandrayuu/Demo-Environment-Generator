@@ -131,7 +131,19 @@ export async function verifyAccess(
   request: Request,
   env: Env
 ): Promise<AuthResult> {
-  // Skip auth in development
+  // Check if Cloudflare Access is required
+  // REQUIRE_CLOUDFLARE_ACCESS=false disables JWT verification (for MVP/temporary deployments)
+  const requireAccess = env.REQUIRE_CLOUDFLARE_ACCESS !== "false";
+
+  // Skip auth if not required (MVP mode)
+  if (!requireAccess) {
+    return {
+      authenticated: true,
+      userEmail: "public@demo",
+    };
+  }
+
+  // Skip auth in development when CF Access is not configured
   if (env.ENVIRONMENT === "development" && !env.CF_ACCESS_TEAM_DOMAIN) {
     return {
       authenticated: true,

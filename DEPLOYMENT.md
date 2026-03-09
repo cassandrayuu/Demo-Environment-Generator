@@ -53,7 +53,7 @@ This guide covers deploying the Productboard Demo Generator to Railway (Python r
 Railway will auto-detect the Dockerfile. If not, manually configure:
 
 | Setting | Value |
-|---------|-------|
+| --- | --- |
 | Root Directory | `/` (repository root) |
 | Builder | Dockerfile |
 | Dockerfile Path | `services/runner/Dockerfile` |
@@ -63,10 +63,10 @@ Railway will auto-detect the Dockerfile. If not, manually configure:
 In Railway dashboard → **Variables** tab, add:
 
 | Variable | Required | Description | Example |
-|----------|----------|-------------|---------|
+| --- | --- | --- | --- |
 | `RUNNER_SECRET` | Yes | Shared secret for Worker auth | Generate: `openssl rand -hex 32` |
 | `ANTHROPIC_API_KEY` | Yes | Anthropic API key for AI generation | `sk-ant-...` |
-| `CORS_ORIGINS` | No | Comma-separated allowed origins | `https://your-worker.workers.dev,https://your-app.pages.dev` |
+| `CORS_ORIGINS` | No | Comma-separated allowed origins | `https://your-worker.workers.dev``,``https://your-app.pages.dev` |
 
 > Railway auto-injects `PORT`. The Dockerfile uses `$PORT` variable.
 
@@ -179,7 +179,7 @@ wrangler pages deploy dist --project-name=pb-demo-web
 4. Configure build settings:
 
 | Setting | Value |
-|---------|-------|
+| --- | --- |
 | Framework preset | Vite |
 | Build command | `npm run build` |
 | Build output directory | `dist` |
@@ -190,7 +190,7 @@ wrangler pages deploy dist --project-name=pb-demo-web
 In Pages dashboard → **Settings** → **Environment variables**:
 
 | Variable | Value |
-|----------|-------|
+| --- | --- |
 | `VITE_API_URL` | `https://pb-demo-api.your-subdomain.workers.dev` |
 
 > **Important**: Environment variables starting with `VITE_` are embedded at build time. After changing, trigger a rebuild.
@@ -209,7 +209,7 @@ Visit your Pages URL and test the full flow:
 ### Railway (Python Runner)
 
 | Variable | Required | Description |
-|----------|----------|-------------|
+| --- | --- | --- |
 | `PORT` | Auto | Injected by Railway |
 | `RUNNER_SECRET` | Yes | Shared auth secret |
 | `ANTHROPIC_API_KEY` | Yes | AI generation |
@@ -218,15 +218,16 @@ Visit your Pages URL and test the full flow:
 ### Cloudflare Worker
 
 | Variable | Required | Description |
-|----------|----------|-------------|
+| --- | --- | --- |
 | `RUNNER_URL` | Yes | Railway service URL |
 | `RUNNER_SECRET` | Yes | Shared auth secret |
-| `CF_ACCESS_TEAM_DOMAIN` | No | Cloudflare Access domain |
+| `REQUIRE_CLOUDFLARE_ACCESS` | No | Set to `"false"` to disable CF Access JWT verification (default: `"false"` for MVP) |
+| `CF_ACCESS_TEAM_DOMAIN` | No | Cloudflare Access domain (required if `REQUIRE_CLOUDFLARE_ACCESS=true`) |
 
 ### Cloudflare Pages
 
 | Variable | Required | Description |
-|----------|----------|-------------|
+| --- | --- | --- |
 | `VITE_API_URL` | Yes | Worker URL (build-time) |
 
 ---
@@ -238,6 +239,22 @@ Visit your Pages URL and test the full flow:
 Check logs in Railway dashboard. Common issues:
 - Missing `ANTHROPIC_API_KEY` - service starts but logs warning
 - Missing `RUNNER_SECRET` - service starts with auth disabled
+
+### Worker: "Missing CF-Access-JWT-Assertion header"
+
+This error occurs when Cloudflare Access JWT verification is enabled but the request doesn't have the header. For MVP/temporary deployments:
+
+1. In `wrangler.toml`, ensure:
+```toml
+   [vars]
+   REQUIRE_CLOUDFLARE_ACCESS = "false"
+```
+2. Redeploy the Worker: `npm run deploy`
+
+For production with Cloudflare Access:
+1. Set `REQUIRE_CLOUDFLARE_ACCESS = "true"` in `wrangler.toml`
+2. Set the secret: `wrangler secret put CF_ACCESS_TEAM_DOMAIN`
+3. Configure your Cloudflare Access application to protect the Worker
 
 ### Worker: "RUNNER_URL not set"
 

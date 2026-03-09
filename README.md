@@ -17,7 +17,7 @@ Generate and apply best-practice demo hierarchies for prospect companies in Prod
                             └──────────────────────┘
 ```
 
-## Quick Start (Web App - Local Development)
+## Quick Start (Local Development)
 
 ### 1. Start the Python Runner
 
@@ -51,55 +51,18 @@ The worker API will be available at http://localhost:8787
 
 ---
 
-## Quick Start (CLI - Original Scripts)
-
-### 1. One-Time Setup
-
-```bash
-cd "/Users/cassandrayuu/Claude Projects/Workspace/hierarchy_sync_staging"
-source .venv/bin/activate
-export PB_TOKEN="your-productboard-api-token"
-```
-
-### 2. Generate Files for a New Company
-
-In Nimbalyst, ask Claude:
-> "Generate POC files for [Company Name] [website.com]"
-
-This creates three files in `prospects/<company>/`:
-- `product_mapping.json` - 2 products, 3 components each, 4 features per component
-- `strategy_mapping.json` - 3 objectives with 2 key results each, 6 initiatives
-- `features.txt` - ~20 feature names for insight generation
-
-### 3. Select Which Products to Rename
-
-```bash
-python3 pb_rename_hierarchy.py "prospects/<company>/product_mapping.json" --select
-```
-
-### 4. Run the POC Setup
-
-```bash
-# Dry run (preview changes)
-python3 pb_poc_setup.py --company "<Company Name>" --website "<website.com>" --dry-run
-
-# Apply changes
-python3 pb_poc_setup.py --company "<Company Name>" --website "<website.com>" --apply
-```
-
----
-
 ## Project Structure
 
 ```
 hierarchy_sync_staging/
 ├── core/                          # Python core modules
 │   ├── pb_client.py              # Productboard API client
-│   ├── generator.py              # AI mapping generation
+│   ├── generator.py              # AI mapping generation (Claude)
 │   ├── hierarchy.py              # Product hierarchy operations
 │   ├── strategy.py               # Strategy operations
-│   ├── insights.py               # Note generation
+│   ├── insights.py               # Note generation (templates)
 │   ├── runner.py                 # Orchestration
+│   ├── models.py                 # Data models
 │   └── validators.py             # Validation utilities
 │
 ├── services/
@@ -127,14 +90,9 @@ hierarchy_sync_staging/
 │       ├── vite.config.ts
 │       └── package.json
 │
-├── prospects/                    # Company mapping files
-│   ├── _templates/              # Template files
-│   └── <company>/               # Per-company files
-│
-├── pb_poc_setup.py              # CLI orchestrator
-├── pb_rename_hierarchy.py       # CLI hierarchy rename
-├── pb_rename_strategy.py        # CLI strategy rename
-└── pb_generate_insights.py      # CLI insights generator
+├── DEPLOYMENT.md                 # Deployment instructions
+├── CLAUDE.md                     # AI assistant context
+└── README.md                     # This file
 ```
 
 ---
@@ -146,17 +104,16 @@ hierarchy_sync_staging/
 | Endpoint | Method | Description |
 | --- | --- | --- |
 | `/health` | GET | Health check |
-| `/products/list` | POST | List products in PB space |
-| `/mappings/generate` | POST | AI-generate mapping files |
-| `/run` | POST | Execute POC setup |
-| `/validate` | POST | Preflight validation |
+| `/api/analyze` | POST | Analyze PB space structure |
+| `/api/run` | POST | Execute POC setup (streaming) |
+| `/api/mappings/generate` | POST | AI-generate mapping files |
 
 ### Worker API (Cloudflare - Port 8787)
 
 | Endpoint | Method | Description |
 | --- | --- | --- |
-| `/api/products/list` | POST | Proxy to runner |
-| `/api/mappings/generate` | POST | Proxy to runner |
+| `/api/analyze` | POST | Proxy to runner |
+| `/api/run` | POST | Proxy to runner (streaming) |
 | `/api/jobs` | POST | Create and execute job |
 | `/api/jobs/:id` | GET | Get job status |
 | `/api/jobs` | GET | List recent jobs |
@@ -196,7 +153,6 @@ wrangler deploy
 # Set secrets
 wrangler secret put RUNNER_URL
 wrangler secret put RUNNER_SECRET
-wrangler secret put CF_ACCESS_TEAM_DOMAIN
 ```
 
 ### React Frontend (Cloudflare Pages)
@@ -235,31 +191,12 @@ wrangler pages deploy dist
 
 ---
 
-## Mapping File Constraints
-
-**CRITICAL**: Files must match these exact structures or scripts will fail.
-
-### product_mapping.json
-- **2 products** total
-- **3 components** per product
-- **4 features** per component
-
-### strategy_mapping.json
-- **3 objectives** with **2 key results** each
-- **6 initiatives** total
-
-### features.txt
-- One feature name per line (10-25 recommended)
-
----
-
 ## Troubleshooting
 
 | Error | Fix |
 | --- | --- |
-| "No module named 'requests'" | `source .venv/bin/activate` |
-| "PB_TOKEN not set" | `export PB_TOKEN="your-token"` |
-| "Position out of range" | Use `--select` to choose products |
-| API rate limiting | Scripts auto-retry with backoff |
+| "No module named '...'" | `source .venv/bin/activate` |
 | Invalid token (401) | Check your Productboard API token |
 | Insufficient permissions (403) | Ensure token has write access |
+| AI generation failed | Check ANTHROPIC_API_KEY is set |
+| Connection refused | Ensure runner is running on correct port |

@@ -6,15 +6,18 @@ compatibility_date = "2024-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "pb-demo-db"
-database_id = "YOUR_DATABASE_ID"  # Replace after creating with: wrangler d1 create pb-demo-db
+database_id = "e014c946-5ee8-41cb-ae2b-93417fb46af3"  # Replace after creating with: wrangler d1 create pb-demo-db
 
 # Environment variables (set via wrangler secret)
 # RUNNER_URL - URL of the Python runner service
 # RUNNER_SECRET - Shared secret for runner authentication
 # CF_ACCESS_TEAM_DOMAIN - Cloudflare Access team domain (e.g., "yourteam.cloudflareaccess.com")
+# REQUIRE_CLOUDFLARE_ACCESS - Set to "false" to disable CF Access JWT verification (MVP mode)
 
 [vars]
 ENVIRONMENT = "production"
+# Set to "false" for temporary/MVP deployments without Cloudflare Access
+REQUIRE_CLOUDFLARE_ACCESS = "false"
 
 # Local development
 [env.dev]

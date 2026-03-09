@@ -16,7 +16,6 @@ interface ProgressPageProps {
 }
 
 export function ProgressPage({
-  company,
   jobResult,
   completedSteps,
   currentStep,
