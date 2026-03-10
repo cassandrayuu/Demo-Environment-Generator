@@ -12,9 +12,11 @@ import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-# LLM Provider configuration
-LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "gemini")  # gemini | anthropic
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+# LLM Provider configuration defaults
+# Note: These are read at runtime in generate_flexible_mappings() to ensure
+# Railway env vars are picked up correctly
+DEFAULT_LLM_PROVIDER = "gemini"
+DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
 
 from .models import (
     ComponentMapping,
@@ -706,7 +708,7 @@ def _convert_flexible_to_mappings(
     return product_mapping, strategy_mapping, features_list
 
 
-def _call_gemini(prompt: str, api_key: str) -> str:
+def _call_gemini(prompt: str, api_key: str, model_name: str = DEFAULT_GEMINI_MODEL) -> str:
     """Call Gemini API, return raw text response."""
     try:
         import google.generativeai as genai
@@ -717,7 +719,7 @@ def _call_gemini(prompt: str, api_key: str) -> str:
 
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(GEMINI_MODEL)
+        model = genai.GenerativeModel(model_name)
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
@@ -774,7 +776,9 @@ def generate_flexible_mappings(
     website = _normalize_website(website)
     prompt = _build_flexible_generation_prompt(company, website, structure)
 
-    provider = LLM_PROVIDER.lower()
+    # Read env vars at runtime (not module load time) to ensure Railway env vars work
+    provider = os.environ.get("LLM_PROVIDER", DEFAULT_LLM_PROVIDER).lower()
+    gemini_model = os.environ.get("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
     print(f"[Generator] Using LLM provider: {provider}")
 
     if provider == "gemini":
@@ -783,8 +787,8 @@ def generate_flexible_mappings(
             raise GenerationError(
                 "GEMINI_API_KEY not set. Set environment variable or switch to LLM_PROVIDER=anthropic."
             )
-        print(f"[Generator] Calling Gemini model: {GEMINI_MODEL}")
-        response_text = _call_gemini(prompt, api_key)
+        print(f"[Generator] Calling Gemini model: {gemini_model}")
+        response_text = _call_gemini(prompt, api_key, gemini_model)
     else:
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
