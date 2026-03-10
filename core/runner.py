@@ -388,7 +388,7 @@ def run_poc_streaming(
     """
     # Debug: log which LLM provider is configured
     llm_provider = os.environ.get("LLM_PROVIDER", "gemini")
-    print(f"[Runner] LLM_PROVIDER={llm_provider}")
+    print(f"[Runner] LLM_PROVIDER={llm_provider}", flush=True)
     client = client or default_client
     options = options or FlexibleOptions()
     apply = mode == "apply"

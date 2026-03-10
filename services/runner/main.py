@@ -8,6 +8,9 @@ import os
 import sys
 from pathlib import Path
 
+# Force unbuffered stdout for Railway logs
+sys.stdout.reconfigure(line_buffering=True)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 

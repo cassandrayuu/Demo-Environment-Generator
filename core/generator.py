@@ -719,15 +719,17 @@ def _call_gemini(prompt: str, api_key: str, model_name: str = DEFAULT_GEMINI_MOD
         )
 
     try:
+        print(f"[Generator] Creating Gemini client...", flush=True)
         client = genai.Client(api_key=api_key)
+        print(f"[Generator] Sending request to Gemini...", flush=True)
         response = client.models.generate_content(
             model=model_name,
             contents=prompt,
         )
-        print(f"[Generator] Gemini response received, length: {len(response.text)}")
+        print(f"[Generator] Gemini response received, length: {len(response.text)}", flush=True)
         return response.text
     except Exception as e:
-        print(f"[Generator] Gemini API error: {type(e).__name__}: {e}")
+        print(f"[Generator] Gemini API error: {type(e).__name__}: {e}", flush=True)
         error_str = str(e).lower()
         if "quota" in error_str or "rate" in error_str or "429" in error_str:
             raise GenerationError(f"Gemini rate limit/quota exceeded: {e}")
@@ -784,23 +786,26 @@ def generate_flexible_mappings(
     # Read env vars at runtime (not module load time) to ensure Railway env vars work
     provider = os.environ.get("LLM_PROVIDER", DEFAULT_LLM_PROVIDER).lower()
     gemini_model = os.environ.get("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
-    print(f"[Generator] Using LLM provider: {provider}")
+    print(f"[Generator] Using LLM provider: {provider}", flush=True)
 
     if provider == "gemini":
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
+            print("[Generator] ERROR: GEMINI_API_KEY not set!", flush=True)
             raise GenerationError(
                 "GEMINI_API_KEY not set. Set environment variable or switch to LLM_PROVIDER=anthropic."
             )
-        print(f"[Generator] Calling Gemini model: {gemini_model}")
+        print(f"[Generator] Calling Gemini model: {gemini_model}", flush=True)
+        print(f"[Generator] API key present: True (length: {len(api_key)})", flush=True)
         response_text = _call_gemini(prompt, api_key, gemini_model)
+        print(f"[Generator] Gemini call completed successfully", flush=True)
     else:
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
             raise GenerationError(
                 "Anthropic API key not provided. Set ANTHROPIC_API_KEY environment variable."
             )
-        print("[Generator] Calling Anthropic Claude")
+        print("[Generator] Calling Anthropic Claude", flush=True)
         response_text = _call_anthropic(prompt, api_key)
 
     data = _parse_claude_response(response_text)
