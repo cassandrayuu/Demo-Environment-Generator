@@ -711,18 +711,23 @@ def _convert_flexible_to_mappings(
 def _call_gemini(prompt: str, api_key: str, model_name: str = DEFAULT_GEMINI_MODEL) -> str:
     """Call Gemini API, return raw text response."""
     try:
-        import google.generativeai as genai
+        from google import genai
+        from google.genai import types
     except ImportError:
         raise GenerationError(
-            "google-generativeai package not installed. Run: pip install google-generativeai"
+            "google-genai package not installed. Run: pip install google-genai"
         )
 
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(model_name)
-        response = model.generate_content(prompt)
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+        )
+        print(f"[Generator] Gemini response received, length: {len(response.text)}")
         return response.text
     except Exception as e:
+        print(f"[Generator] Gemini API error: {type(e).__name__}: {e}")
         error_str = str(e).lower()
         if "quota" in error_str or "rate" in error_str or "429" in error_str:
             raise GenerationError(f"Gemini rate limit/quota exceeded: {e}")
