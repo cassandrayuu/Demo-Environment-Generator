@@ -53,6 +53,8 @@ async def startup_event():
 
     # Check for required environment variables
     runner_secret = os.environ.get("RUNNER_SECRET")
+    llm_provider = os.environ.get("LLM_PROVIDER", "gemini")
+    gemini_key = os.environ.get("GEMINI_API_KEY")
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
 
     if not runner_secret:
@@ -60,10 +62,16 @@ async def startup_event():
     else:
         print("Authentication: enabled")
 
-    if not anthropic_key:
-        print("WARNING: ANTHROPIC_API_KEY not set - using template fallback")
+    if llm_provider == "gemini":
+        if gemini_key:
+            print(f"AI Generation: enabled (Gemini)")
+        else:
+            print("WARNING: GEMINI_API_KEY not set - using template fallback")
     else:
-        print("AI Generation: enabled")
+        if anthropic_key:
+            print(f"AI Generation: enabled (Anthropic)")
+        else:
+            print("WARNING: ANTHROPIC_API_KEY not set - using template fallback")
 
     print("=" * 60)
 
