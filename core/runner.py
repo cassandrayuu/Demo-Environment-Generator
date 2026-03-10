@@ -74,6 +74,7 @@ def run_poc(
     options = options or FlexibleOptions()
     apply = mode == "apply"
     job_id = str(uuid.uuid4())
+    llm_provider = os.environ.get("LLM_PROVIDER", "gemini")
 
     steps: List[StepResult] = []
     warnings: List[str] = []
@@ -154,6 +155,7 @@ def run_poc(
     if mappings is None:
         step_logs: List[str] = []
         step_logs.append(f"Generating mappings for {company} ({website})...")
+        step_logs.append(f"LLM Provider: {llm_provider}")
 
         try:
             mappings = generate_flexible_mappings(company, website, structure)
@@ -477,6 +479,7 @@ def run_poc_streaming(
     if mappings is None:
         step_logs: List[str] = []
         step_logs.append(f"Generating mappings for {company} ({website})...")
+        step_logs.append(f"LLM Provider: {llm_provider}")
 
         try:
             mappings = generate_flexible_mappings(company, website, structure)
