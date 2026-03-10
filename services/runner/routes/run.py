@@ -119,7 +119,8 @@ async def run_job(
     Uses flexible generation that adapts to the actual structure of selected products.
     Returns Server-Sent Events (SSE) with step completions and final result.
     """
-    anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
+    # LLM provider is configured via LLM_PROVIDER env var in core/generator.py
+    # API keys are read from env vars there (GEMINI_API_KEY or ANTHROPIC_API_KEY)
 
     # Convert mappings if provided
     mappings = None
@@ -143,7 +144,6 @@ async def run_job(
                 selected_product_ids=request.selectedProductIds,
                 mode=request.mode.value,
                 mappings=mappings,
-                anthropic_api_key=anthropic_api_key,
                 options=options,
             ):
                 if event["type"] == "step":

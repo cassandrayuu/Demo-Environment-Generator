@@ -10,6 +10,7 @@ Coordinates all steps:
 6. Generate user insights
 """
 
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -47,7 +48,6 @@ def run_poc(
     selected_product_ids: List[str],
     mode: str = "apply",  # Default to apply now
     mappings: Optional[GeneratedMappings] = None,
-    anthropic_api_key: Optional[str] = None,
     client: Optional[ProductboardClient] = None,
     options: Optional[FlexibleOptions] = None,
 ) -> JobResult:
@@ -55,6 +55,7 @@ def run_poc(
     Run the complete POC setup.
 
     Uses flexible generation that adapts to the actual structure of selected products.
+    LLM provider is configured via LLM_PROVIDER env var (gemini or anthropic).
 
     Args:
         company: Company name
@@ -63,7 +64,6 @@ def run_poc(
         selected_product_ids: IDs of 1-2 products to rename
         mode: 'dry-run' or 'apply'
         mappings: Optional pre-generated mappings (generated if not provided)
-        anthropic_api_key: Optional Anthropic API key for AI generation
         client: Optional ProductboardClient instance
         options: Optional FlexibleOptions for caps
 
@@ -156,7 +156,7 @@ def run_poc(
         step_logs.append(f"Generating mappings for {company} ({website})...")
 
         try:
-            mappings = generate_flexible_mappings(company, website, structure, anthropic_api_key)
+            mappings = generate_flexible_mappings(company, website, structure)
             step_logs.append("AI-generated mappings created successfully")
 
             step = StepResult(
@@ -371,7 +371,6 @@ def run_poc_streaming(
     selected_product_ids: List[str],
     mode: str = "apply",  # Default to apply now (no more dry-run as default)
     mappings: Optional[GeneratedMappings] = None,
-    anthropic_api_key: Optional[str] = None,
     client: Optional[ProductboardClient] = None,
     options: Optional[FlexibleOptions] = None,
 ):
@@ -379,11 +378,15 @@ def run_poc_streaming(
     Run the POC setup with streaming progress updates.
 
     Uses flexible generation that adapts to the actual structure of selected products.
+    LLM provider is configured via LLM_PROVIDER env var (gemini or anthropic).
 
     Yields events as each step completes:
     - {"type": "step", "step": StepResult}
     - {"type": "complete", "result": JobResult}
     """
+    # Debug: log which LLM provider is configured
+    llm_provider = os.environ.get("LLM_PROVIDER", "gemini")
+    print(f"[Runner] LLM_PROVIDER={llm_provider}")
     client = client or default_client
     options = options or FlexibleOptions()
     apply = mode == "apply"
@@ -476,7 +479,7 @@ def run_poc_streaming(
         step_logs.append(f"Generating mappings for {company} ({website})...")
 
         try:
-            mappings = generate_flexible_mappings(company, website, structure, anthropic_api_key)
+            mappings = generate_flexible_mappings(company, website, structure)
             step_logs.append("AI-generated mappings created successfully")
 
             step = StepResult(

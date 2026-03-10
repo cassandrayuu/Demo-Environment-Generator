@@ -14,6 +14,7 @@ tenacity>=8.2.0
 
 # AI generation
 anthropic>=0.18.0
+google-generativeai>=0.8.0
 
 # Security
 python-jose[cryptography]>=3.3.0

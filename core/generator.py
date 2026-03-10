@@ -1,8 +1,8 @@
 """
 AI-powered mapping file generator.
 
-Uses Claude API to research a company and generate realistic
-product, strategy, and feature mappings.
+Uses LLM APIs (Gemini or Anthropic) to research a company and generate
+realistic product, strategy, and feature mappings.
 """
 
 import hashlib
@@ -11,6 +11,10 @@ import os
 import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
+
+# LLM Provider configuration
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "gemini")  # gemini | anthropic
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
 
 from .models import (
     ComponentMapping,
@@ -702,51 +706,93 @@ def _convert_flexible_to_mappings(
     return product_mapping, strategy_mapping, features_list
 
 
-def generate_flexible_mappings(
-    company: str,
-    website: str,
-    structure: List[ProductStructure],
-    anthropic_api_key: Optional[str] = None,
-) -> GeneratedMappings:
-    """
-    Generate mappings that match the actual structure of selected products.
-
-    Args:
-        company: Company name
-        website: Company website URL
-        structure: Actual structure of selected products
-        anthropic_api_key: Anthropic API key
-
-    Returns:
-        GeneratedMappings with mappings matching the structure
-    """
-    api_key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
+def _call_gemini(prompt: str, api_key: str) -> str:
+    """Call Gemini API, return raw text response."""
+    try:
+        import google.generativeai as genai
+    except ImportError:
         raise GenerationError(
-            "Anthropic API key not provided. Set ANTHROPIC_API_KEY environment variable."
+            "google-generativeai package not installed. Run: pip install google-generativeai"
         )
 
-    website = _normalize_website(website)
-    prompt = _build_flexible_generation_prompt(company, website, structure)
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(GEMINI_MODEL)
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        error_str = str(e).lower()
+        if "quota" in error_str or "rate" in error_str or "429" in error_str:
+            raise GenerationError(f"Gemini rate limit/quota exceeded: {e}")
+        elif "permission" in error_str or "401" in error_str or "403" in error_str:
+            raise GenerationError(f"Gemini auth error: {e}")
+        else:
+            raise GenerationError(f"Gemini API call failed: {e}")
 
+
+def _call_anthropic(prompt: str, api_key: str) -> str:
+    """Call Anthropic API, return raw text response."""
     try:
         import anthropic
+    except ImportError:
+        raise GenerationError(
+            "anthropic package not installed. Run: pip install anthropic"
+        )
 
+    try:
         client = anthropic.Anthropic(api_key=api_key)
         message = client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
-
-        response_text = message.content[0].text
-
-    except ImportError:
-        raise GenerationError(
-            "anthropic package not installed. Run: pip install anthropic"
-        )
+        return message.content[0].text
     except Exception as e:
         raise GenerationError(f"Claude API call failed: {e}")
+
+
+def generate_flexible_mappings(
+    company: str,
+    website: str,
+    structure: List[ProductStructure],
+) -> GeneratedMappings:
+    """
+    Generate mappings that match the actual structure of selected products.
+
+    LLM provider is configured via LLM_PROVIDER env var:
+    - "gemini" (default): uses GEMINI_API_KEY
+    - "anthropic": uses ANTHROPIC_API_KEY
+
+    Args:
+        company: Company name
+        website: Company website URL
+        structure: Actual structure of selected products
+
+    Returns:
+        GeneratedMappings with mappings matching the structure
+    """
+    website = _normalize_website(website)
+    prompt = _build_flexible_generation_prompt(company, website, structure)
+
+    provider = LLM_PROVIDER.lower()
+    print(f"[Generator] Using LLM provider: {provider}")
+
+    if provider == "gemini":
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise GenerationError(
+                "GEMINI_API_KEY not set. Set environment variable or switch to LLM_PROVIDER=anthropic."
+            )
+        print(f"[Generator] Calling Gemini model: {GEMINI_MODEL}")
+        response_text = _call_gemini(prompt, api_key)
+    else:
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise GenerationError(
+                "Anthropic API key not provided. Set ANTHROPIC_API_KEY environment variable."
+            )
+        print("[Generator] Calling Anthropic Claude")
+        response_text = _call_anthropic(prompt, api_key)
 
     data = _parse_claude_response(response_text)
 
