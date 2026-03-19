@@ -10,7 +10,10 @@ import json
 import os
 import re
 from dataclasses import dataclass
+from html.parser import HTMLParser
 from typing import Any, Dict, List, Optional, Tuple
+
+import requests
 
 # LLM Provider configuration defaults
 # Note: These are read at runtime in generate_flexible_mappings() to ensure
@@ -64,6 +67,110 @@ class GenerationError(Exception):
     """Error during mapping generation."""
 
     pass
+
+
+@dataclass
+class WebsiteContext:
+    """Context extracted from a website for grounding LLM generation."""
+
+    title: str
+    description: str
+    content_snippet: str
+
+    def to_prompt_section(self) -> str:
+        """Format context for inclusion in prompts."""
+        parts = []
+        if self.title:
+            parts.append(f"Page Title: {self.title}")
+        if self.description:
+            parts.append(f"Description: {self.description}")
+        if self.content_snippet:
+            parts.append(f"Content: {self.content_snippet}")
+        return "\n".join(parts) if parts else ""
+
+
+class _HTMLTextExtractor(HTMLParser):
+    """Simple HTML parser to extract text content."""
+
+    def __init__(self):
+        super().__init__()
+        self.text_parts = []
+        self.title = ""
+        self.description = ""
+        self._in_title = False
+        self._in_script = False
+        self._in_style = False
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "title":
+            self._in_title = True
+        elif tag in ("script", "style"):
+            self._in_script = True
+            self._in_style = True
+        elif tag == "meta":
+            attrs_dict = dict(attrs)
+            if attrs_dict.get("name", "").lower() == "description":
+                self.description = attrs_dict.get("content", "")[:300]
+
+    def handle_endtag(self, tag):
+        if tag == "title":
+            self._in_title = False
+        elif tag in ("script", "style"):
+            self._in_script = False
+            self._in_style = False
+
+    def handle_data(self, data):
+        if self._in_title:
+            self.title = data.strip()[:200]
+        elif not self._in_script and not self._in_style:
+            text = data.strip()
+            if text and len(text) > 3:
+                self.text_parts.append(text)
+
+
+def fetch_website_context(url: str, timeout: int = 5) -> Optional[WebsiteContext]:
+    """
+    Fetch and extract context from a website URL.
+
+    Returns None on any failure (timeout, 404, JS-only page, etc.)
+    """
+    try:
+        # Normalize URL
+        if not url.startswith(("http://", "https://")):
+            url = f"https://{url}"
+
+        print(f"[Generator] Fetching website context from: {url}", flush=True)
+
+        response = requests.get(
+            url,
+            timeout=timeout,
+            headers={
+                "User-Agent": "Mozilla/5.0 (compatible; ProductboardDemo/1.0)",
+                "Accept": "text/html,application/xhtml+xml",
+            },
+        )
+        response.raise_for_status()
+
+        # Parse HTML
+        parser = _HTMLTextExtractor()
+        parser.feed(response.text)
+
+        # Build content snippet from extracted text
+        content_parts = parser.text_parts[:20]  # First 20 text chunks
+        content_snippet = " ".join(content_parts)[:500]  # Limit to 500 chars
+
+        context = WebsiteContext(
+            title=parser.title,
+            description=parser.description,
+            content_snippet=content_snippet,
+        )
+
+        print(f"[Generator] Extracted context - title: '{context.title[:50]}...'", flush=True)
+        return context
+
+    except Exception as e:
+        print(f"[Generator] Failed to fetch website context: {e}", flush=True)
+        return None
 
 
 def _get_seed_from_inputs(company: str, website: str) -> int:
@@ -513,7 +620,8 @@ def generate_mappings_from_template(company: str) -> GeneratedMappings:
 
 
 def _build_flexible_generation_prompt(
-    company: str, website: str, structure: List[ProductStructure]
+    company: str, website: str, structure: List[ProductStructure],
+    context: Optional[WebsiteContext] = None
 ) -> str:
     """Build prompt for flexible mapping generation based on actual structure."""
     domain = _extract_domain(website)
@@ -533,13 +641,25 @@ def _build_flexible_generation_prompt(
 
     structure_text = "\n".join(structure_desc)
 
+    # Include website context if available
+    context_section = ""
+    if context:
+        context_text = context.to_prompt_section()
+        if context_text:
+            context_section = f"""
+**About this product** (from website):
+{context_text}
+
+Use this information to generate accurate, product-specific names and features.
+"""
+
     return f"""You are helping create a demo environment for Productboard, a product management tool.
 Generate realistic product hierarchy and strategy mappings for a company.
 
 **Company**: {company}
 **Website**: {website}
 **Domain**: {domain}
-
+{context_section}
 **Existing Structure**:
 {structure_text}
 
@@ -547,6 +667,7 @@ Generate realistic product hierarchy and strategy mappings for a company.
 
 Generate NEW NAMES for the existing hierarchy that would make sense for {company}'s products.
 The names should be realistic, specific to the company's industry, and sound like actual product features.
+Base your names on what this product ACTUALLY does (see context above), not generic guesses.
 
 Also generate realistic objectives, key results, and initiatives appropriate for {company} and this workspace.
 
@@ -764,7 +885,11 @@ def generate_flexible_mappings(
         GeneratedMappings with mappings matching the structure
     """
     website = _normalize_website(website)
-    prompt = _build_flexible_generation_prompt(company, website, structure)
+
+    # Fetch website context for grounding (fails gracefully)
+    context = fetch_website_context(website)
+
+    prompt = _build_flexible_generation_prompt(company, website, structure, context)
 
     # Read env vars at runtime (not module load time) to ensure Railway env vars work
     provider = os.environ.get("LLM_PROVIDER", DEFAULT_LLM_PROVIDER).lower()

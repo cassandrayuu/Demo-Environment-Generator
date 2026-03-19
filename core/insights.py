@@ -213,16 +213,26 @@ def _extract_domain(website: str) -> str:
     return domain
 
 
-def _build_insights_prompt(company: str, website: str, features: List[str]) -> str:
+def _build_insights_prompt(company: str, website: str, features: List[str], context_text: str = "") -> str:
     """Build prompt for LLM to generate realistic user insights."""
     features_str = ", ".join(features[:15])  # limit to avoid prompt bloat
+
+    # Include context section if available
+    context_section = ""
+    if context_text:
+        context_section = f"""
+## About this product (from website)
+{context_text}
+
+Use this to understand what the product ACTUALLY does and generate feedback that matches real use cases.
+"""
 
     return f"""Generate realistic, detailed customer feedback notes for a {company} demo.
 
 Company: {company}
 Website: {website}
 Product features: {features_str}
-
+{context_section}
 ## Task
 Generate 5 high-quality customer feedback notes.
 
@@ -333,10 +343,14 @@ def _insight_to_note(insight: Dict, target_company: str) -> GeneratedNote:
 
 def _generate_llm_notes(company: str, website: str, features: List[str]) -> List[GeneratedNote]:
     """Generate notes using LLM. Raises on failure."""
-    # Import LLM callers from generator to avoid duplication
-    from .generator import _call_gemini, _call_anthropic, DEFAULT_GEMINI_MODEL
+    # Import LLM callers and context fetcher from generator to avoid duplication
+    from .generator import _call_gemini, _call_anthropic, DEFAULT_GEMINI_MODEL, fetch_website_context
 
-    prompt = _build_insights_prompt(company, website, features)
+    # Fetch website context for grounding (fails gracefully)
+    context = fetch_website_context(website)
+    context_text = context.to_prompt_section() if context else ""
+
+    prompt = _build_insights_prompt(company, website, features, context_text)
 
     provider = os.environ.get("LLM_PROVIDER", "gemini").lower()
     print(f"[Insights] Using LLM provider: {provider}", flush=True)
