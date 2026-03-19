@@ -81,67 +81,93 @@ def validate_product_mapping(
     return ValidationResult(valid=len(errors) == 0, errors=errors, warnings=warnings)
 
 
-def validate_strategy_mapping(mapping: StrategyMapping) -> ValidationResult:
+def validate_strategy_mapping(mapping: StrategyMapping, flexible: bool = False) -> ValidationResult:
     """
     Validate that a strategy mapping meets all requirements.
 
-    Requirements:
+    If flexible=False (legacy):
     - Exactly 3 objectives
     - Exactly 2 key results per objective
     - Exactly 6 initiatives
+
+    If flexible=True:
+    - At least 1 objective with at least 1 key result
+    - At least 1 initiative
     """
     errors: List[ValidationError] = []
     warnings: List[str] = []
 
-    # Check objective count
-    if len(mapping.objectives) != REQUIRED_OBJECTIVES:
-        errors.append(
-            ValidationError(
-                field="objectives",
-                message=f"Expected {REQUIRED_OBJECTIVES} objectives, got {len(mapping.objectives)}",
-            )
-        )
-
-    # Check each objective
-    for i, objective in enumerate(mapping.objectives):
-        objective_path = f"objectives[{i}]"
-
-        # Check key result count
-        if len(objective.key_results) != REQUIRED_KEY_RESULTS_PER_OBJECTIVE:
+    if flexible:
+        # Flexible validation: just require minimums
+        if len(mapping.objectives) < 1:
             errors.append(
                 ValidationError(
-                    field=f"{objective_path}.keyResults",
-                    message=f"Objective {i + 1} has {len(objective.key_results)} key results, expected {REQUIRED_KEY_RESULTS_PER_OBJECTIVE}",
+                    field="objectives",
+                    message="At least 1 objective required",
+                )
+            )
+        for i, objective in enumerate(mapping.objectives):
+            if len(objective.key_results) < 1:
+                errors.append(
+                    ValidationError(
+                        field=f"objectives[{i}].keyResults",
+                        message=f"Objective {i + 1} must have at least 1 key result",
+                    )
+                )
+        if len(mapping.initiatives) < 1:
+            errors.append(
+                ValidationError(
+                    field="initiatives",
+                    message="At least 1 initiative required",
+                )
+            )
+    else:
+        # Legacy validation: exact counts
+        if len(mapping.objectives) != REQUIRED_OBJECTIVES:
+            errors.append(
+                ValidationError(
+                    field="objectives",
+                    message=f"Expected {REQUIRED_OBJECTIVES} objectives, got {len(mapping.objectives)}",
                 )
             )
 
-    # Check initiative count
-    if len(mapping.initiatives) != REQUIRED_INITIATIVES:
-        errors.append(
-            ValidationError(
-                field="initiatives",
-                message=f"Expected {REQUIRED_INITIATIVES} initiatives, got {len(mapping.initiatives)}",
+        for i, objective in enumerate(mapping.objectives):
+            objective_path = f"objectives[{i}]"
+            if len(objective.key_results) != REQUIRED_KEY_RESULTS_PER_OBJECTIVE:
+                errors.append(
+                    ValidationError(
+                        field=f"{objective_path}.keyResults",
+                        message=f"Objective {i + 1} has {len(objective.key_results)} key results, expected {REQUIRED_KEY_RESULTS_PER_OBJECTIVE}",
+                    )
+                )
+
+        if len(mapping.initiatives) != REQUIRED_INITIATIVES:
+            errors.append(
+                ValidationError(
+                    field="initiatives",
+                    message=f"Expected {REQUIRED_INITIATIVES} initiatives, got {len(mapping.initiatives)}",
+                )
             )
-        )
 
     return ValidationResult(valid=len(errors) == 0, errors=errors, warnings=warnings)
 
 
-def validate_features_list(features: List[str]) -> ValidationResult:
+def validate_features_list(features: List[str], flexible: bool = False) -> ValidationResult:
     """
     Validate that a features list meets requirements.
 
-    Requirements:
-    - At least 10 features
+    If flexible=False: At least 10 features
+    If flexible=True: At least 1 feature
     """
     errors: List[ValidationError] = []
     warnings: List[str] = []
 
-    if len(features) < MIN_FEATURES_LIST:
+    min_required = 1 if flexible else MIN_FEATURES_LIST
+    if len(features) < min_required:
         errors.append(
             ValidationError(
                 field="features",
-                message=f"Expected at least {MIN_FEATURES_LIST} features, got {len(features)}",
+                message=f"Expected at least {min_required} features, got {len(features)}",
             )
         )
 
@@ -249,12 +275,12 @@ def preflight_check(
         warnings.extend(mapping_result.warnings)
 
     if strategy_mapping:
-        mapping_result = validate_strategy_mapping(strategy_mapping)
+        mapping_result = validate_strategy_mapping(strategy_mapping, flexible=flexible)
         errors.extend(mapping_result.errors)
         warnings.extend(mapping_result.warnings)
 
     if features:
-        features_result = validate_features_list(features)
+        features_result = validate_features_list(features, flexible=flexible)
         errors.extend(features_result.errors)
         warnings.extend(features_result.warnings)
 
