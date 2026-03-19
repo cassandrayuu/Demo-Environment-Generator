@@ -6,7 +6,7 @@ compatibility_date = "2024-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "pb-demo-db"
-database_id = "e014c946-5ee8-41cb-ae2b-93417fb46af3"  # Replace after creating with: wrangler d1 create pb-demo-db
+database_id = "2997cb61-1b12-427a-ad97-9360c66ac6c6"
 
 # Environment variables (set via wrangler secret)
 # RUNNER_URL - URL of the Python runner service
