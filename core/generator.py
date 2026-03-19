@@ -815,9 +815,14 @@ def generate_flexible_mappings(
             raise
 
     data = _parse_claude_response(response_text)
+    print(f"[Generator] Parsed data keys: {list(data.keys())}", flush=True)
+    if "products" in data and data["products"]:
+        print(f"[Generator] First product keys: {list(data['products'][0].keys()) if data['products'] else 'empty'}", flush=True)
+        print(f"[Generator] First product sample: {str(data['products'][0])[:200]}", flush=True)
 
     errors = _validate_flexible_data(data, structure)
     if errors:
+        print(f"[Generator] Validation errors: {errors}", flush=True)
         raise GenerationError(f"Generated data validation failed: {'; '.join(errors)}")
 
     product_mapping, strategy_mapping, features_list = _convert_flexible_to_mappings(
