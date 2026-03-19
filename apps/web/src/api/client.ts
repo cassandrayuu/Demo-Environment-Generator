@@ -191,3 +191,96 @@ export function clearToken(): void {
     console.error('Failed to clear token from localStorage:', e);
   }
 }
+
+// Insights Generator types and functions
+export interface InsightsProgressEvent {
+  current: number;
+  total: number;
+  note?: string;
+  company?: string;
+}
+
+export interface InsightsCompleteEvent {
+  status: 'success' | 'error';
+  created: number;
+  failed?: number;
+  message?: string;
+}
+
+export interface GenerateInsightsParams {
+  company: string;
+  website: string;
+  token: string;
+  count: number;
+}
+
+/**
+ * Generate insights with streaming progress updates.
+ */
+export async function generateInsightsStreaming(
+  params: GenerateInsightsParams,
+  onProgress: (event: InsightsProgressEvent) => void,
+  onComplete: (event: InsightsCompleteEvent) => void,
+  onError: (error: string) => void
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/insights`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    try {
+      const error = JSON.parse(text);
+      throw new Error(error.detail || error.error || `HTTP ${response.status}`);
+    } catch {
+      throw new Error(`HTTP ${response.status}: ${text.slice(0, 100)}`);
+    }
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('No response body');
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+
+    // Process complete events (each ends with \n\n)
+    const events = buffer.split('\n\n');
+    buffer = events.pop() || ''; // Keep incomplete event in buffer
+
+    for (const event of events) {
+      if (!event.trim()) continue;
+
+      // Parse SSE format: "event: type\ndata: {...}"
+      const eventMatch = event.match(/^event: (.+)$/m);
+      const dataMatch = event.match(/^data: (.+)$/m);
+      if (!dataMatch) continue;
+
+      try {
+        const eventType = eventMatch?.[1] || 'unknown';
+        const data = JSON.parse(dataMatch[1]);
+
+        if (eventType === 'progress') {
+          onProgress(data);
+        } else if (eventType === 'complete') {
+          onComplete(data);
+        } else if (eventType === 'error') {
+          onError(data.message || 'Unknown error');
+        }
+      } catch (e) {
+        console.error('Failed to parse SSE event:', e);
+      }
+    }
+  }
+}

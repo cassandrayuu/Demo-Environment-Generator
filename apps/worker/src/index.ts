@@ -9,6 +9,7 @@ import { verifyAccess, unauthorizedResponse } from "./middleware/auth";
 import { handleListProducts, handleAnalyzeSpace } from "./routes/products";
 import { handleGenerateMappings } from "./routes/mappings";
 import { handleCreateJob, handleGetJob, handleListJobs, handleRunJob } from "./routes/jobs";
+import { handleGenerateInsights } from "./routes/insights";
 
 /**
  * CORS headers
@@ -105,6 +106,10 @@ export default {
         // POST /api/mappings/generate
         else if (path === "/api/mappings/generate" && method === "POST") {
           response = await handleGenerateMappings(request, env);
+        }
+        // POST /api/insights
+        else if (path === "/api/insights" && method === "POST") {
+          response = await handleGenerateInsights(request, env);
         }
         // POST /api/jobs (legacy job creation)
         else if (path === "/api/jobs" && method === "POST") {

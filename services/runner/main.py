@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # Add core module to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from .routes import health, mappings, products, run
+from .routes import health, mappings, products, run, insights
 
 # Create FastAPI app
 app = FastAPI(
@@ -45,6 +45,7 @@ app.include_router(health.router, tags=["health"])
 app.include_router(products.router, prefix="/api", tags=["products"])
 app.include_router(mappings.router, prefix="/api", tags=["mappings"])
 app.include_router(run.router, prefix="/api", tags=["jobs"])
+app.include_router(insights.router, prefix="/api", tags=["insights"])
 
 
 @app.on_event("startup")

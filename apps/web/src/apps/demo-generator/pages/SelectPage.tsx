@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ProductInfo } from '../types';
+import type { ProductInfo } from '../../../types';
 
 interface SelectPageProps {
   company: string;

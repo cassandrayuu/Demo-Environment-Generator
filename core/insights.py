@@ -11,7 +11,7 @@ import random
 import re
 import uuid
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, Generator, List, Optional
 
 from .models import StepResult, StepStatus
 from .pb_client import ProductboardClient, ProductboardError, default_client
@@ -317,14 +317,92 @@ def _parse_insights_response(response_text: str) -> List[Dict]:
     return data
 
 
+# Known company domains for proper email generation
+KNOWN_COMPANY_DOMAINS = {
+    # Financial
+    "wells fargo": "wellsfargo.com",
+    "wells fargo bank": "wellsfargo.com",
+    "jpmorgan": "jpmorgan.com",
+    "jpmorgan chase": "jpmorganchase.com",
+    "bank of america": "bankofamerica.com",
+    "goldman sachs": "goldmansachs.com",
+    "morgan stanley": "morganstanley.com",
+    "american express": "americanexpress.com",
+    "capital one": "capitalone.com",
+    "citibank": "citi.com",
+    "citi": "citi.com",
+    # Law firms
+    "morrison & foerster": "mofo.com",
+    "morrison & foerster llp": "mofo.com",
+    "baker mckenzie": "bakermckenzie.com",
+    "latham & watkins": "lw.com",
+    "king & spalding": "kslaw.com",
+    "kroll": "kroll.com",
+    "kroll associates": "kroll.com",
+    "deloitte": "deloitte.com",
+    "deloitte legal": "deloitte.com",
+    "kpmg": "kpmg.com",
+    "kpmg law": "kpmg.com",
+    # Tech
+    "booking.com": "booking.com",
+    "zendesk": "zendesk.com",
+    "uipath": "uipath.com",
+    "microsoft": "microsoft.com",
+    "salesforce": "salesforce.com",
+    "merck": "merck.com",
+    "merck & co": "merck.com",
+    "merck & co.": "merck.com",
+    # Food/Restaurant
+    "chipotle": "chipotle.com",
+    "chipotle mexican grill": "chipotle.com",
+    "panera": "panerabread.com",
+    "panera bread": "panerabread.com",
+    "papa john's": "papajohns.com",
+    "papa johns": "papajohns.com",
+    "wingstop": "wingstop.com",
+    "the cheesecake factory": "thecheesecakefactory.com",
+    "cheesecake factory": "thecheesecakefactory.com",
+    # Hospitality
+    "marriott": "marriott.com",
+    "hilton": "hilton.com",
+    "hyatt": "hyatt.com",
+    # Retail/Brands
+    "gymshark": "gymshark.com",
+    "sephora": "sephora.com",
+    "nike": "nike.com",
+    "adidas": "adidas.com",
+    "toyota": "toyota.com",
+    "coca-cola": "coca-cola.com",
+    "coca cola": "coca-cola.com",
+    "unilever": "unilever.com",
+    "t-mobile": "t-mobile.com",
+}
+
+
+def _get_email_domain(company_name: str) -> str:
+    """Get proper email domain for a company name."""
+    normalized = company_name.lower().strip()
+
+    # Check known domains first
+    if normalized in KNOWN_COMPANY_DOMAINS:
+        return KNOWN_COMPANY_DOMAINS[normalized]
+
+    # For unknown companies, create a clean domain
+    # Remove common suffixes like Inc, LLC, LLP, Corp, etc.
+    clean = re.sub(r'\s+(inc\.?|llc\.?|llp\.?|corp\.?|ltd\.?|company|co\.?)$', '', normalized, flags=re.IGNORECASE)
+    # Convert to domain format: "Wells Fargo Bank" -> "wellsfargobank"
+    domain = re.sub(r'[^a-z0-9]', '', clean.lower())
+    return f"{domain}.com"
+
+
 def _insight_to_note(insight: Dict, target_company: str) -> GeneratedNote:
     """Convert parsed insight dict to GeneratedNote."""
     # Use company name from insight (the customer), fall back to generic
     customer_company = insight.get("company", "Customer")
 
-    # Generate email domain from customer company name (e.g., "Gymshark" -> "gymshark.com")
-    email_domain = re.sub(r"[^a-z0-9]", "", customer_company.lower())
-    email = f"feedback@{email_domain}.com"
+    # Get proper email domain (uses known domains or generates clean one)
+    email_domain = _get_email_domain(customer_company)
+    email = f"feedback@{email_domain}"
 
     feature = insight.get("feature")
     features_ref = [feature] if feature else []
@@ -401,8 +479,8 @@ def _generate_note(
         selected_features.append(selected_features[0])
 
     user_name, email_name = _generate_user_name()
-    email_domain = re.sub(r"[^a-z0-9]", "", note_company.lower())
-    email = f"{email_name}@{email_domain}.com"
+    email_domain = _get_email_domain(note_company)
+    email = f"{email_name}@{email_domain}"
 
     title = template["title_template"].format(
         company=note_company,
@@ -578,3 +656,237 @@ def generate_insights(
             logs=logs,
             error=str(e),
         )
+
+
+# ---------------------------------------------------------------------------
+# Standalone insights generation with streaming progress
+# ---------------------------------------------------------------------------
+
+def _build_insights_prompt_with_count(
+    company: str,
+    website: str,
+    context_text: str,
+    count: int
+) -> str:
+    """Build prompt for LLM to generate N insights without pre-defined features."""
+    context_section = ""
+    if context_text:
+        context_section = f"""
+## About this product (from website)
+{context_text}
+
+Use this context to understand what the product does and generate realistic feature names
+and feedback that matches real use cases.
+"""
+
+    return f"""Generate {count} realistic, detailed customer feedback notes for a {company} demo.
+
+Company: {company}
+Website: {website}
+{context_section}
+## Task
+Generate {count} high-quality customer feedback notes.
+
+You must infer realistic product features from the company/website context.
+
+## Requirements
+
+### 1. Customer identity
+Each note must come from a REALISTIC COMPANY NAME (not a person):
+- For consumer apps (Instagram, TikTok, etc.) → brands, agencies, creators (e.g., "Gymshark", "Sephora", "SociallyIn")
+- For delivery/food (DoorDash, Uber Eats) → restaurants, chains, merchants
+- For B2B software → actual company-style names matching the industry
+
+DO NOT use placeholders like "User123" or "Test Company".
+
+---
+
+### 2. Content depth (VERY IMPORTANT)
+Each note must be:
+- 2–4 paragraphs long
+- conversational but detailed
+- include:
+  - context (how they use the product)
+  - specific issue or feedback
+  - impact on their workflow or business
+  - any attempted workarounds or frustrations
+  - optional urgency or request
+
+Think:
+- support ticket
+- escalation email
+- customer complaint
+- POC feedback
+
+---
+
+### 3. Tone by company type
+- Consumer apps → natural, slightly emotional
+- B2B → structured but conversational
+- Avoid overly formal "Dear Support Team" language unless appropriate
+
+---
+
+### 4. Feature grounding
+- Reference realistic product features naturally
+- Tie feedback to real usage (not generic statements)
+
+---
+
+### 5. Variety
+Mix:
+- negative (frustration, bugs)
+- neutral (observations)
+- positive (value, wins)
+
+---
+
+## Output format (JSON array)
+
+[
+  {{
+    "company": "Gymshark",
+    "text": "Full multi-paragraph feedback...",
+    "sentiment": "negative",
+    "feature": "Reels Algorithm"
+  }}
+]
+
+Return ONLY valid JSON with exactly {count} items."""
+
+
+def generate_insights_standalone(
+    token: str,
+    company: str,
+    website: str,
+    count: int = 10,
+) -> Generator[Dict, None, None]:
+    """
+    Generate customer feedback notes as a standalone operation with streaming progress.
+
+    Unlike generate_insights(), this function:
+    - Does NOT require a pre-defined features list
+    - Generates features from company/website context via LLM
+    - Yields progress events for each note created
+    - Always applies (creates notes in Productboard)
+
+    Args:
+        token: Productboard API token
+        company: Company name for tagging and context
+        website: Company website URL for context
+        count: Number of notes to generate (default 10)
+
+    Yields:
+        Dict events:
+        - {"type": "progress", "current": 1, "total": 10, "note": "...", "company": "..."}
+        - {"type": "complete", "created": 10, "failed": 0}
+        - {"type": "error", "message": "..."}
+    """
+    from .generator import _call_gemini, _call_anthropic, DEFAULT_GEMINI_MODEL, fetch_website_context
+
+    client = default_client
+    created = 0
+    failed = 0
+
+    print(f"[Insights Standalone] Starting generation for {company}, count={count}", flush=True)
+
+    try:
+        # Fetch website context for grounding
+        print(f"[Insights Standalone] Fetching website context from {website}", flush=True)
+        context = fetch_website_context(website)
+        context_text = context.to_prompt_section() if context else ""
+
+        # Build prompt for N notes
+        prompt = _build_insights_prompt_with_count(company, website, context_text, count)
+
+        # Call LLM
+        provider = os.environ.get("LLM_PROVIDER", "gemini").lower()
+        print(f"[Insights Standalone] Using LLM provider: {provider}", flush=True)
+
+        if provider == "gemini":
+            api_key = os.environ.get("GEMINI_API_KEY")
+            if not api_key:
+                yield {"type": "error", "message": "GEMINI_API_KEY not set"}
+                return
+            gemini_model = os.environ.get("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
+            response_text = _call_gemini(prompt, api_key, gemini_model)
+        else:
+            api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if not api_key:
+                yield {"type": "error", "message": "ANTHROPIC_API_KEY not set"}
+                return
+            response_text = _call_anthropic(prompt, api_key)
+
+        print(f"[Insights Standalone] LLM response received, length: {len(response_text)}", flush=True)
+
+        # Parse response
+        try:
+            insights = _parse_insights_response(response_text)
+        except Exception as e:
+            yield {"type": "error", "message": f"Failed to parse LLM response: {e}"}
+            return
+
+        print(f"[Insights Standalone] Parsed {len(insights)} insights", flush=True)
+
+        # Create each note and yield progress
+        total = len(insights)
+        for i, insight in enumerate(insights, 1):
+            note = _insight_to_note(insight, company)
+
+            try:
+                note_id = client.create_note(
+                    token=token,
+                    title=note.title,
+                    content=note.content,
+                    customer_email=note.user_email,
+                    source_origin=note.source,
+                    source_record_id=str(uuid.uuid4()),
+                    company_name=note.company_name,
+                )
+
+                if note_id:
+                    print(f"[Insights Standalone] Created note {i}/{total}: {note_id}", flush=True)
+                    created += 1
+
+                    # Tag with company name
+                    client.tag_note(token, note_id, company)
+
+                    yield {
+                        "type": "progress",
+                        "current": i,
+                        "total": total,
+                        "note": note.title[:60],
+                        "company": note.company_name,
+                    }
+                else:
+                    print(f"[Insights Standalone] Failed to create note {i}/{total}", flush=True)
+                    failed += 1
+                    yield {
+                        "type": "progress",
+                        "current": i,
+                        "total": total,
+                        "note": f"Failed: {note.title[:40]}",
+                        "company": note.company_name,
+                    }
+
+            except ProductboardError as e:
+                print(f"[Insights Standalone] Error creating note {i}/{total}: {e}", flush=True)
+                failed += 1
+                yield {
+                    "type": "progress",
+                    "current": i,
+                    "total": total,
+                    "note": f"Error: {str(e)[:40]}",
+                    "company": note.company_name,
+                }
+
+        # Done
+        yield {
+            "type": "complete",
+            "created": created,
+            "failed": failed,
+        }
+
+    except Exception as e:
+        print(f"[Insights Standalone] Error: {e}", flush=True)
+        yield {"type": "error", "message": str(e)}

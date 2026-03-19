@@ -1,4 +1,4 @@
-import type { JobResult } from '../types';
+import type { JobResult } from '../../../types';
 
 interface CompletedStep {
   name: string;
