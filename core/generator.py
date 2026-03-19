@@ -561,10 +561,7 @@ Generate names EXACTLY matching this structure:
     } for j, comp in enumerate(product.components)]
 } for i, product in enumerate(structure)], indent=2)}
 
-Also generate:
-- 3 objectives with 2 key results each
-- 6 initiatives
-- 20 feature names for the features list
+Also generate realistic objectives, key results, and initiatives appropriate for {company} and this workspace.
 
 ## Output Format
 
@@ -635,24 +632,23 @@ def _validate_flexible_data(
                     f"Product {i+1}, Component {j+1}: Expected {exp_comp.feature_count} features, got {len(features)}"
                 )
 
-    # Validate strategy (still fixed)
+    # Validate strategy structure (permissive on counts, strict on structure)
     objectives = data.get("objectives", [])
-    if len(objectives) != REQUIRED_OBJECTIVES:
-        errors.append(f"Expected {REQUIRED_OBJECTIVES} objectives, got {len(objectives)}")
-
+    if not objectives:
+        errors.append("No objectives generated")
     for i, obj in enumerate(objectives):
         if "name" not in obj:
             errors.append(f"Objective {i+1}: Missing 'name' field")
-        if "keyResults" not in obj:
-            errors.append(f"Objective {i+1}: Missing 'keyResults' field")
+        if "keyResults" not in obj or not isinstance(obj.get("keyResults"), list):
+            errors.append(f"Objective {i+1}: Missing or invalid 'keyResults' field")
 
     initiatives = data.get("initiatives", [])
-    if len(initiatives) != REQUIRED_INITIATIVES:
-        errors.append(f"Expected {REQUIRED_INITIATIVES} initiatives, got {len(initiatives)}")
+    if not initiatives:
+        errors.append("No initiatives generated")
 
     features_list = data.get("featuresList", [])
-    if len(features_list) < REQUIRED_FEATURES_LIST:
-        errors.append(f"Expected at least {REQUIRED_FEATURES_LIST} features, got {len(features_list)}")
+    if not features_list:
+        errors.append("No features list generated")
 
     return errors
 
@@ -797,8 +793,13 @@ def generate_flexible_mappings(
             )
         print(f"[Generator] Calling Gemini model: {gemini_model}", flush=True)
         print(f"[Generator] API key present: True (length: {len(api_key)})", flush=True)
-        response_text = _call_gemini(prompt, api_key, gemini_model)
-        print(f"[Generator] Gemini call completed successfully", flush=True)
+        print(f"[Generator] About to call _call_gemini...", flush=True)
+        try:
+            response_text = _call_gemini(prompt, api_key, gemini_model)
+            print(f"[Generator] Gemini call completed successfully", flush=True)
+        except Exception as e:
+            print(f"[Generator] _call_gemini raised exception: {type(e).__name__}: {e}", flush=True)
+            raise
     else:
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
