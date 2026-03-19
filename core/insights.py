@@ -2,8 +2,11 @@
 User insights/notes generation.
 
 Generates and pushes realistic user feedback notes to Productboard.
+Uses LLM generation when available, with template fallback.
 """
 
+import json
+import os
 import random
 import re
 import uuid
@@ -195,6 +198,132 @@ class GeneratedNote:
     features_referenced: List[str]
 
 
+# ---------------------------------------------------------------------------
+# LLM-based insights generation
+# ---------------------------------------------------------------------------
+
+def _extract_domain(website: str) -> str:
+    """Extract domain from website URL."""
+    website = website.strip()
+    if not website.startswith(("http://", "https://")):
+        website = f"https://{website}"
+    domain = re.sub(r"^https?://", "", website)
+    domain = domain.split("/")[0]
+    domain = re.sub(r"^www\.", "", domain)
+    return domain
+
+
+def _build_insights_prompt(company: str, website: str, features: List[str]) -> str:
+    """Build prompt for LLM to generate realistic user insights."""
+    domain = _extract_domain(website)
+    features_str = ", ".join(features[:15])  # limit to avoid prompt bloat
+
+    return f"""Generate realistic user feedback for a {company} product demo.
+
+**Company**: {company}
+**Website**: {website}
+**Domain**: {domain}
+**Product Features**: {features_str}
+
+## Task
+Generate 7 diverse user feedback entries that feel authentic for {company}'s customer base.
+
+## Guidelines
+- Match the company type:
+  - Consumer apps (Instagram, TikTok, Snapchat): casual, emotional, short messages
+  - Delivery/logistics (DoorDash, Uber, Instacart): mix of merchants, customers, drivers
+  - B2B SaaS: natural but more structured
+  - Enterprise: professional but not formal letter style
+- Reference features naturally (not every insight needs one)
+- Mix of positive, negative, and neutral sentiment
+- Personas should match the company's actual user base
+- Feedback styles: support tickets, slack messages, interview quotes, NPS comments, sales call notes
+
+## Output Format
+Return ONLY a JSON array:
+```json
+[
+  {{
+    "text": "The feedback text (2-4 sentences max)",
+    "persona": "Creator" or "Merchant" or "Driver" or "Admin" etc.,
+    "sentiment": "positive" or "negative" or "neutral",
+    "feature": "Feature name or null",
+    "source": "Support" or "NPS Survey" or "Customer Interview" or "Slack" or "Sales POC"
+  }}
+]
+```
+
+Return ONLY the JSON array, no other text."""
+
+
+def _parse_insights_response(response_text: str) -> List[Dict]:
+    """Parse LLM response to extract insights JSON."""
+    # Try to extract JSON from code blocks first
+    json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", response_text)
+    if json_match:
+        json_str = json_match.group(1)
+    else:
+        json_str = response_text.strip()
+
+    data = json.loads(json_str)
+    if not isinstance(data, list):
+        raise ValueError("Expected JSON array")
+    return data
+
+
+def _insight_to_note(insight: Dict, company: str) -> GeneratedNote:
+    """Convert parsed insight dict to GeneratedNote."""
+    # Generate email for persona
+    persona = insight.get("persona", "User")
+    email_name = persona.lower().replace(" ", ".") + str(random.randint(100, 999))
+    email_domain = re.sub(r"[^a-z0-9]", "", company.lower())
+    email = f"{email_name}@{email_domain}-user.com"
+
+    feature = insight.get("feature")
+    features_ref = [feature] if feature else []
+
+    return GeneratedNote(
+        title=f"Feedback from {persona}: {insight.get('text', '')[:50]}...",
+        content=insight.get("text", ""),
+        user_email=email,
+        source=insight.get("source", "Support"),
+        company_name=company,
+        sentiment=insight.get("sentiment", "neutral"),
+        tone="informal",
+        features_referenced=features_ref,
+    )
+
+
+def _generate_llm_notes(company: str, website: str, features: List[str]) -> List[GeneratedNote]:
+    """Generate notes using LLM. Raises on failure."""
+    # Import LLM callers from generator to avoid duplication
+    from .generator import _call_gemini, _call_anthropic, DEFAULT_GEMINI_MODEL
+
+    prompt = _build_insights_prompt(company, website, features)
+
+    provider = os.environ.get("LLM_PROVIDER", "gemini").lower()
+    print(f"[Insights] Using LLM provider: {provider}", flush=True)
+
+    if provider == "gemini":
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY not set")
+        gemini_model = os.environ.get("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
+        response_text = _call_gemini(prompt, api_key, gemini_model)
+    else:
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY not set")
+        response_text = _call_anthropic(prompt, api_key)
+
+    print(f"[Insights] LLM response received, length: {len(response_text)}", flush=True)
+
+    insights = _parse_insights_response(response_text)
+    print(f"[Insights] Parsed {len(insights)} insights from LLM", flush=True)
+
+    return [_insight_to_note(ins, company) for ins in insights]
+
+
 def _get_sample_companies(company: str) -> List[str]:
     """Get relevant sample customer companies for a target company."""
     normalized = company.lower().replace(" ", "").replace("-", "")
@@ -292,6 +421,7 @@ def generate_insights(
     features: List[str],
     apply: bool = False,
     client: Optional[ProductboardClient] = None,
+    website: Optional[str] = None,
 ) -> StepResult:
     """
     Generate and optionally create user insight notes.
@@ -302,6 +432,7 @@ def generate_insights(
         features: List of feature names to reference
         apply: If True, actually create notes; if False, dry-run
         client: Optional ProductboardClient instance
+        website: Company website (enables LLM generation when provided)
 
     Returns:
         StepResult with summary and logs
@@ -309,13 +440,25 @@ def generate_insights(
     client = client or default_client
     logs: List[str] = []
     stats = {"generated": 0, "created": 0, "tagged": 0, "errors": 0}
+    used_llm = False
 
     print(f"[Insights] Starting insights generation for {company}, features count: {len(features)}, apply={apply}", flush=True)
 
     try:
-        # Generate notes
-        logs.append(f"Generating {5} user insight notes...")
-        notes = generate_notes(company, features, count=5)
+        # Try LLM generation first if website is provided
+        if website:
+            try:
+                logs.append("Attempting LLM-powered insights generation...")
+                notes = _generate_llm_notes(company, website, features)
+                used_llm = True
+                logs.append(f"Generated {len(notes)} LLM-powered insights")
+            except Exception as e:
+                print(f"[Insights] LLM generation failed, falling back to templates: {e}", flush=True)
+                logs.append(f"LLM generation failed ({type(e).__name__}), using template fallback")
+                notes = generate_notes(company, features, count=5)
+        else:
+            logs.append("Generating template-based user insight notes...")
+            notes = generate_notes(company, features, count=5)
         stats["generated"] = len(notes)
 
         mode_str = "APPLY" if apply else "DRY-RUN"

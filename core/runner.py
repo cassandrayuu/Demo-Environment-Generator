@@ -348,6 +348,7 @@ def run_poc(
         features=mappings.features_list,
         apply=apply,
         client=client,
+        website=website,
     )
     steps.append(insights_result)
 
@@ -669,6 +670,7 @@ def run_poc_streaming(
         features=mappings.features_list,
         apply=apply,
         client=client,
+        website=website,
     )
     steps.append(insights_result)
     yield {"type": "step", "step": insights_result}
