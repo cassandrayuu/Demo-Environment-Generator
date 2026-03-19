@@ -311,8 +311,10 @@ def _insight_to_note(insight: Dict, target_company: str) -> GeneratedNote:
     """Convert parsed insight dict to GeneratedNote."""
     # Use company name from insight (the customer), fall back to generic
     customer_company = insight.get("company", "Customer")
-    email_name = re.sub(r"[^a-z0-9]", "", customer_company.lower()) + str(random.randint(100, 999))
-    email = f"{email_name}@example.com"
+
+    # Generate email domain from customer company name (e.g., "Gymshark" -> "gymshark.com")
+    email_domain = re.sub(r"[^a-z0-9]", "", customer_company.lower())
+    email = f"feedback@{email_domain}.com"
 
     feature = insight.get("feature")
     features_ref = [feature] if feature else []
@@ -321,7 +323,7 @@ def _insight_to_note(insight: Dict, target_company: str) -> GeneratedNote:
         title=f"Feedback from {customer_company}: {insight.get('text', '')[:50]}...",
         content=insight.get("text", ""),
         user_email=email,
-        source="Support",  # simplified - no longer in output format
+        source="Support",
         company_name=customer_company,
         sentiment=insight.get("sentiment", "neutral"),
         tone="informal",
