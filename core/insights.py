@@ -215,45 +215,81 @@ def _extract_domain(website: str) -> str:
 
 def _build_insights_prompt(company: str, website: str, features: List[str]) -> str:
     """Build prompt for LLM to generate realistic user insights."""
-    domain = _extract_domain(website)
     features_str = ", ".join(features[:15])  # limit to avoid prompt bloat
 
-    return f"""Generate realistic user feedback for a {company} product demo.
+    return f"""Generate realistic, detailed customer feedback notes for a {company} demo.
 
-**Company**: {company}
-**Website**: {website}
-**Domain**: {domain}
-**Product Features**: {features_str}
+Company: {company}
+Website: {website}
+Product features: {features_str}
 
 ## Task
-Generate 7 diverse user feedback entries that feel authentic for {company}'s customer base.
+Generate 5 high-quality customer feedback notes.
 
-## Guidelines
-- Match the company type:
-  - Consumer apps (Instagram, TikTok, Snapchat): casual, emotional, short messages
-  - Delivery/logistics (DoorDash, Uber, Instacart): mix of merchants, customers, drivers
-  - B2B SaaS: natural but more structured
-  - Enterprise: professional but not formal letter style
-- Reference features naturally (not every insight needs one)
-- Mix of positive, negative, and neutral sentiment
-- Personas should match the company's actual user base
-- Feedback styles: support tickets, slack messages, interview quotes, NPS comments, sales call notes
+## Requirements
 
-## Output Format
-Return ONLY a JSON array:
-```json
+### 1. Customer identity
+Each note must come from a REALISTIC COMPANY NAME (not a person):
+- For Instagram → brands, agencies, creators (e.g., "Gymshark", "Sephora", "SociallyIn")
+- For DoorDash → restaurants, chains, merchants
+- For B2B → actual company-style names
+
+DO NOT use placeholders like "User123" or "Test Company".
+
+---
+
+### 2. Content depth (VERY IMPORTANT)
+Each note must be:
+- 2–4 paragraphs long
+- conversational but detailed
+- include:
+  - context (how they use the product)
+  - specific issue or feedback
+  - impact on their workflow or business
+  - any attempted workarounds or frustrations
+  - optional urgency or request
+
+Think:
+- support ticket
+- escalation email
+- customer complaint
+- POC feedback
+
+---
+
+### 3. Tone by company type
+- Consumer apps → natural, slightly emotional
+- B2B → structured but conversational
+- Avoid overly formal "Dear Support Team" language unless appropriate
+
+---
+
+### 4. Feature grounding
+- Reference the provided features naturally
+- Tie feedback to real usage (not generic statements)
+
+---
+
+### 5. Variety
+Mix:
+- negative (frustration, bugs)
+- neutral (observations)
+- positive (value, wins)
+
+---
+
+## Output format (JSON array)
+
 [
   {{
-    "text": "The feedback text (2-4 sentences max)",
-    "persona": "Creator" or "Merchant" or "Driver" or "Admin" etc.,
-    "sentiment": "positive" or "negative" or "neutral",
-    "feature": "Feature name or null",
-    "source": "Support" or "NPS Survey" or "Customer Interview" or "Slack" or "Sales POC"
+    "company": "Gymshark",
+    "text": "Full multi-paragraph feedback...",
+    "sentiment": "negative",
+    "feature": "Reels Algorithm"
   }}
 ]
-```
 
-Return ONLY the JSON array, no other text."""
+Return ONLY valid JSON."""
 
 
 def _parse_insights_response(response_text: str) -> List[Dict]:
@@ -271,23 +307,22 @@ def _parse_insights_response(response_text: str) -> List[Dict]:
     return data
 
 
-def _insight_to_note(insight: Dict, company: str) -> GeneratedNote:
+def _insight_to_note(insight: Dict, target_company: str) -> GeneratedNote:
     """Convert parsed insight dict to GeneratedNote."""
-    # Generate email for persona
-    persona = insight.get("persona", "User")
-    email_name = persona.lower().replace(" ", ".") + str(random.randint(100, 999))
-    email_domain = re.sub(r"[^a-z0-9]", "", company.lower())
-    email = f"{email_name}@{email_domain}-user.com"
+    # Use company name from insight (the customer), fall back to generic
+    customer_company = insight.get("company", "Customer")
+    email_name = re.sub(r"[^a-z0-9]", "", customer_company.lower()) + str(random.randint(100, 999))
+    email = f"{email_name}@example.com"
 
     feature = insight.get("feature")
     features_ref = [feature] if feature else []
 
     return GeneratedNote(
-        title=f"Feedback from {persona}: {insight.get('text', '')[:50]}...",
+        title=f"Feedback from {customer_company}: {insight.get('text', '')[:50]}...",
         content=insight.get("text", ""),
         user_email=email,
-        source=insight.get("source", "Support"),
-        company_name=company,
+        source="Support",  # simplified - no longer in output format
+        company_name=customer_company,
         sentiment=insight.get("sentiment", "neutral"),
         tone="informal",
         features_referenced=features_ref,
