@@ -310,6 +310,8 @@ def generate_insights(
     logs: List[str] = []
     stats = {"generated": 0, "created": 0, "tagged": 0, "errors": 0}
 
+    print(f"[Insights] Starting insights generation for {company}, features count: {len(features)}, apply={apply}", flush=True)
+
     try:
         # Generate notes
         logs.append(f"Generating {5} user insight notes...")
@@ -338,6 +340,7 @@ def generate_insights(
                     )
 
                     if note_id:
+                        print(f"[Insights] Created note: {note_id}", flush=True)
                         logs.append(f"  Created note: {note_id}")
                         stats["created"] += 1
 
@@ -348,10 +351,12 @@ def generate_insights(
                         else:
                             logs.append(f"  Warning: Failed to tag (note was still created)")
                     else:
+                        print("[Insights] Error: create_note returned None", flush=True)
                         logs.append(f"  Error: Failed to create note")
                         stats["errors"] += 1
 
                 except ProductboardError as e:
+                    print(f"[Insights] ProductboardError: {e}", flush=True)
                     logs.append(f"  Error: {e}")
                     stats["errors"] += 1
             else:
