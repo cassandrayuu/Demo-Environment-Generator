@@ -548,24 +548,11 @@ Generate realistic product hierarchy and strategy mappings for a company.
 Generate NEW NAMES for the existing hierarchy that would make sense for {company}'s products.
 The names should be realistic, specific to the company's industry, and sound like actual product features.
 
-## STRICT Requirements
-
-Generate names EXACTLY matching this structure:
-{json.dumps([{
-    "productIndex": i,
-    "productName": "NEW_NAME",
-    "components": [{
-        "componentIndex": j,
-        "componentName": "NEW_NAME",
-        "features": [f"Feature name {k+1}" for k in range(comp.feature_count)]
-    } for j, comp in enumerate(product.components)]
-} for i, product in enumerate(structure)], indent=2)}
-
 Also generate realistic objectives, key results, and initiatives appropriate for {company} and this workspace.
 
 ## Output Format
 
-Return a JSON object with this structure:
+Return a JSON object with EXACTLY this structure (matching the number of products/components/features above):
 ```json
 {{
   "products": [
