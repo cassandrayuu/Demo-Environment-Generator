@@ -182,6 +182,7 @@ def run_poc(
             )
 
         except GenerationError as e:
+            print(f"[Runner] AI generation failed: {e}", flush=True)
             step_logs.append(f"AI generation failed: {e}")
             step_logs.append("Falling back to template-based generation...")
 
@@ -500,6 +501,7 @@ def run_poc_streaming(
             )
 
         except GenerationError as e:
+            print(f"[Runner] AI generation failed: {e}", flush=True)
             step_logs.append(f"AI generation failed: {e}")
             step_logs.append("Falling back to template-based generation...")
 

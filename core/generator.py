@@ -807,7 +807,12 @@ def generate_flexible_mappings(
                 "Anthropic API key not provided. Set ANTHROPIC_API_KEY environment variable."
             )
         print("[Generator] Calling Anthropic Claude", flush=True)
-        response_text = _call_anthropic(prompt, api_key)
+        try:
+            response_text = _call_anthropic(prompt, api_key)
+            print("[Generator] Anthropic call completed successfully", flush=True)
+        except Exception as e:
+            print(f"[Generator] Anthropic call failed: {type(e).__name__}: {e}", flush=True)
+            raise
 
     data = _parse_claude_response(response_text)
 
