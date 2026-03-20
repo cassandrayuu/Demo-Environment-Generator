@@ -112,16 +112,23 @@ export async function uploadDocuments(
 ): Promise<UploadResult> {
   const folder = await createFolder(folderName);
 
-  console.log(`Uploading ${documents.length} documents...`);
+  console.log(`Uploading ${documents.length} documents in parallel...`);
 
-  const docUrls: { name: string; url: string }[] = [];
-  for (let i = 0; i < documents.length; i++) {
-    const doc = documents[i];
-    onProgress?.({ document: i + 1, total: documents.length, name: doc.file_name });
-    const result = await createDocument(folder.id, doc);
-    docUrls.push({ name: doc.file_name, url: result.url });
-  }
+  // Signal that uploads are starting
+  onProgress?.({ document: 0, total: documents.length, name: "Starting parallel upload..." });
+
+  // Upload all documents in parallel
+  const results = await Promise.all(
+    documents.map(async (doc, i) => {
+      const result = await createDocument(folder.id, doc);
+      // Note: progress callbacks may arrive out of order due to parallelism
+      onProgress?.({ document: i + 1, total: documents.length, name: doc.file_name });
+      return { name: doc.file_name, url: result.url };
+    })
+  );
+
+  console.log(`All ${documents.length} documents uploaded`);
 
   const folderUrl = `https://drive.google.com/drive/folders/${folder.id}`;
-  return { folderUrl, docUrls };
+  return { folderUrl, docUrls: results };
 }
