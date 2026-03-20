@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { generateDocuments, generateTestDocument } from "../lib/anthropic.js";
+import { generateDocumentsParallel, generateTestDocument } from "../lib/anthropic.js";
 import { parseGenerationResult } from "../lib/parse.js";
 import { uploadDocuments } from "../lib/google-drive.js";
 import type { ProspectInput, GenerationResult } from "../lib/types.js";
@@ -41,16 +41,78 @@ sparkContextRouter.post("/spark-context", async (req: Request, res: Response) =>
   console.log(`[${new Date().toISOString()}] Starting generation for ${prospect.name} (${prospect.domain})`);
 
   try {
-    // Step 1: Generate documents via Anthropic
+    // Test mode uses the simple single-doc generator
+    if (testMode) {
+      sendSSE(res, "progress", {
+        step: "generating",
+        message: "Generating test document...",
+        progress: 5,
+      });
+
+      const rawOutput = await generateTestDocument(prospect, (event) => {
+        if (event.type === "progress") {
+          sendSSE(res, "progress", {
+            step: "generating",
+            message: event.message,
+            progress: event.progress,
+          });
+        }
+      });
+
+      // Parse and upload test document
+      sendSSE(res, "progress", { step: "parsing", message: "Parsing response...", progress: 80 });
+      const result = parseGenerationResult(rawOutput);
+
+      sendSSE(res, "progress", { step: "uploading", message: `Creating folder: ${result.folder_name}`, progress: 85 });
+      const uploadResult = await uploadDocuments(result.folder_name, result.documents);
+
+      const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log(`[${new Date().toISOString()}] SUCCESS (test) | ${prospect.name} | ${result.documents.length} docs | ${duration}s`);
+
+      sendSSE(res, "complete", {
+        folder_name: result.folder_name,
+        folder_url: uploadResult.folderUrl,
+        documents: uploadResult.docUrls,
+      });
+
+      return res.end();
+    }
+
+    // Production mode: parallel batch generation
     sendSSE(res, "progress", {
       step: "generating",
-      message: testMode ? "Generating test document..." : "Generating strategic intelligence...",
+      message: "Generating strategic intelligence (parallel mode)...",
       progress: 5,
     });
 
-    const generateFn = testMode ? generateTestDocument : generateDocuments;
-    const rawOutput = await generateFn(prospect, (event) => {
-      if (event.type === "progress") {
+    // Track batch progress
+    let completedBatches = 0;
+    const totalBatches = 4;
+
+    const parallelResult = await generateDocumentsParallel(prospect, (event) => {
+      if (event.type === "batch_start") {
+        sendSSE(res, "progress", {
+          step: "generating",
+          message: event.message,
+          progress: 10 + (completedBatches / totalBatches) * 60,
+          batch: event.batch,
+        });
+      } else if (event.type === "batch_complete") {
+        completedBatches++;
+        sendSSE(res, "progress", {
+          step: "generating",
+          message: event.message,
+          progress: 10 + (completedBatches / totalBatches) * 60,
+          batch: event.batch,
+        });
+      } else if (event.type === "batch_retry") {
+        sendSSE(res, "progress", {
+          step: "generating",
+          message: event.message,
+          progress: 10 + (completedBatches / totalBatches) * 60,
+          batch: event.batch,
+        });
+      } else if (event.type === "progress") {
         sendSSE(res, "progress", {
           step: "generating",
           message: event.message,
@@ -59,36 +121,29 @@ sparkContextRouter.post("/spark-context", async (req: Request, res: Response) =>
       }
     });
 
-    // Step 2: Parse the response
-    sendSSE(res, "progress", {
-      step: "parsing",
-      message: "Parsing response...",
-      progress: 80,
-    });
-
-    let result: GenerationResult;
-    try {
-      result = parseGenerationResult(rawOutput);
-    } catch (parseError) {
-      console.error("Parse error:", parseError);
-      sendSSE(res, "error", {
-        message: `Failed to parse response: ${parseError instanceof Error ? parseError.message : parseError}`,
-      });
-      return res.end();
+    // Check if we have any documents to upload
+    if (parallelResult.completed.length === 0) {
+      const errors = parallelResult.failed.map(f => `${f.batch}: ${f.error}`).join("; ");
+      throw new Error(`All batches failed: ${errors}`);
     }
 
-    console.log(`Parsed ${result.documents.length} documents`);
+    // Log partial failures (if any)
+    if (parallelResult.failed.length > 0) {
+      console.warn(`[${new Date().toISOString()}] Partial failure | ${prospect.name} | Failed batches: ${parallelResult.failed.map(f => f.batch).join(", ")}`);
+    }
 
-    // Step 3: Upload to Google Drive
+    console.log(`Generated ${parallelResult.completed.length} documents`);
+
+    // Upload to Google Drive
     sendSSE(res, "progress", {
       step: "uploading",
-      message: `Creating folder: ${result.folder_name}`,
+      message: `Creating folder: ${parallelResult.folder_name}`,
       progress: 85,
     });
 
     const uploadResult = await uploadDocuments(
-      result.folder_name,
-      result.documents,
+      parallelResult.folder_name,
+      parallelResult.completed,
       (event) => {
         sendSSE(res, "progress", {
           step: "uploading",
@@ -99,14 +154,16 @@ sparkContextRouter.post("/spark-context", async (req: Request, res: Response) =>
       }
     );
 
-    // Step 4: Complete
+    // Complete
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[${new Date().toISOString()}] SUCCESS | ${prospect.name} (${prospect.domain}) | ${result.documents.length} docs | ${duration}s`);
+    console.log(`[${new Date().toISOString()}] SUCCESS | ${prospect.name} (${prospect.domain}) | ${parallelResult.completed.length} docs | ${duration}s`);
 
     sendSSE(res, "complete", {
-      folder_name: result.folder_name,
+      folder_name: parallelResult.folder_name,
       folder_url: uploadResult.folderUrl,
       documents: uploadResult.docUrls,
+      // Include failed batches info for transparency
+      failed_batches: parallelResult.failed.length > 0 ? parallelResult.failed : undefined,
     });
 
   } catch (error) {

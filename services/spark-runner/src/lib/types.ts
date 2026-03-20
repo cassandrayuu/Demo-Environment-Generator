@@ -8,6 +8,12 @@ export interface GenerationResult {
   documents: GeneratedDocument[];
 }
 
+export interface ParallelGenerationResult {
+  folder_name: string;
+  completed: GeneratedDocument[];
+  failed: { batch: string; error: string }[];
+}
+
 export interface ProspectInput {
   name: string;
   domain: string;
