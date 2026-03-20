@@ -6,12 +6,10 @@ const API_URL = import.meta.env.VITE_API_URL || '';
 const SPARK_PROMPT = 'Recreate each document in my context folder — do not make edits or run analysis, just recreate.';
 
 function DoneStep({
-  company,
   folderUrl,
   documents,
   onRunAgain,
 }: {
-  company: string;
   folderUrl: string | null;
   documents: Array<{ name: string; url: string }>;
   onRunAgain: () => void;
@@ -236,6 +234,8 @@ export function SparkContextApp() {
       const decoder = new TextDecoder();
       let buffer = '';
 
+      let receivedComplete = false;
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -245,6 +245,10 @@ export function SparkContextApp() {
         buffer = lines.pop() || '';
 
         for (const line of lines) {
+          // Skip SSE comments (keepalive pings)
+          if (line.startsWith(':')) {
+            continue;
+          }
           if (line.startsWith('event: ')) {
             continue;
           }
@@ -276,6 +280,7 @@ export function SparkContextApp() {
               });
             } else if (data.folder_url) {
               // Complete event
+              receivedComplete = true;
               updateState({
                 loading: false,
                 step: 'done',
@@ -284,6 +289,7 @@ export function SparkContextApp() {
               });
             } else if (data.message && !data.step) {
               // Error event
+              receivedComplete = true;
               updateState({
                 loading: false,
                 error: data.message,
@@ -292,6 +298,15 @@ export function SparkContextApp() {
             }
           }
         }
+      }
+
+      // Handle unexpected stream termination
+      if (!receivedComplete) {
+        updateState({
+          loading: false,
+          error: 'Connection lost during generation. The documents may have been created - check your Google Drive folder.',
+          step: 'input',
+        });
       }
     } catch (err) {
       updateState({
@@ -368,7 +383,7 @@ export function SparkContextApp() {
 
               <p className="text-xs text-gray-500 text-center">
                 This will generate ~12 strategic documents and save them to Google Drive.
-                Generation takes 2-3 minutes.
+                Generation takes 5-10 minutes.
               </p>
             </div>
           </div>
@@ -405,7 +420,6 @@ export function SparkContextApp() {
                   const currentIndex = PROGRESS_STEPS.findIndex(s => s.id === state.currentProgressStep);
                   const isCompleted = index < currentIndex;
                   const isCurrent = index === currentIndex;
-                  const isUpcoming = index > currentIndex;
 
                   return (
                     <div
@@ -473,7 +487,6 @@ export function SparkContextApp() {
         {/* Done Step */}
         {state.step === 'done' && (
           <DoneStep
-            company={state.company}
             folderUrl={state.folderUrl}
             documents={state.documents}
             onRunAgain={handleRunAgain}

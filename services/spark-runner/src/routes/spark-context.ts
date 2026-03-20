@@ -16,6 +16,17 @@ function sendSSE(res: Response, event: string, data: Record<string, unknown>) {
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
+/**
+ * Start a keepalive interval that sends ping events every 15 seconds
+ * to prevent proxy/load balancer timeouts on long-running SSE connections
+ */
+function startKeepalive(res: Response): NodeJS.Timeout {
+  return setInterval(() => {
+    // SSE comment line - keeps connection alive without triggering event handlers
+    res.write(": keepalive\n\n");
+  }, 15000);
+}
+
 sparkContextRouter.post("/spark-context", async (req: Request, res: Response) => {
   const body = req.body as SparkContextRequest;
 
@@ -39,6 +50,9 @@ sparkContextRouter.post("/spark-context", async (req: Request, res: Response) =>
 
   const startTime = Date.now();
   console.log(`[${new Date().toISOString()}] Starting generation for ${prospect.name} (${prospect.domain})`);
+
+  // Start keepalive pings to prevent connection timeout
+  const keepaliveInterval = startKeepalive(res);
 
   try {
     // Test mode uses the simple single-doc generator
@@ -174,6 +188,9 @@ sparkContextRouter.post("/spark-context", async (req: Request, res: Response) =>
     sendSSE(res, "error", {
       message: errorMessage,
     });
+  } finally {
+    // Always clear keepalive interval
+    clearInterval(keepaliveInterval);
   }
 
   res.end();
