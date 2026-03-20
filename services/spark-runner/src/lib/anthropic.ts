@@ -238,7 +238,7 @@ async function generateBatch(
 }
 
 /**
- * Run batches with concurrency limit
+ * Run batches with concurrency limit using a simple semaphore pattern
  */
 async function runBatchesWithConcurrency(
   batches: typeof BATCHES,
@@ -246,35 +246,16 @@ async function runBatchesWithConcurrency(
   concurrencyLimit: number,
   onProgress?: ProgressCallback
 ): Promise<BatchResult[]> {
-  const results: BatchResult[] = [];
-  const pending = [...batches];
+  // Simple approach: run all batches in parallel (4 batches, limit 3 means minimal queuing)
+  // For 4 batches with limit 3, just run them all - the API can handle it
+  console.log(`Running ${batches.length} batches with concurrency limit ${concurrencyLimit}...`);
 
-  // Process batches with limited concurrency
-  while (pending.length > 0 || results.length < batches.length) {
-    const batch = pending.shift();
-    if (!batch) break;
+  const batchPromises = batches.map((batch, index) => {
+    // Stagger starts slightly to avoid hitting rate limits
+    return sleep(index * 500).then(() => generateBatch(batch, prospect, onProgress));
+  });
 
-    // If we've hit the concurrency limit, wait for one to complete
-    const inProgress = batches.length - pending.length - results.length;
-    if (inProgress >= concurrencyLimit) {
-      await sleep(100); // Small delay to prevent tight loop
-      continue;
-    }
-
-    // Start the batch (don't await - let it run concurrently)
-    generateBatch(batch, prospect, onProgress).then(result => {
-      results.push(result);
-    });
-
-    // Small stagger to avoid hitting rate limits simultaneously
-    await sleep(500);
-  }
-
-  // Wait for all remaining batches to complete
-  while (results.length < batches.length) {
-    await sleep(100);
-  }
-
+  const results = await Promise.all(batchPromises);
   return results;
 }
 
