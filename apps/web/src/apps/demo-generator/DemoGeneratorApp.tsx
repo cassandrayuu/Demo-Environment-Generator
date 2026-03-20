@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { StepIndicator } from '../../components/StepIndicator';
 import { InputPage } from './pages/InputPage';
 import { SelectPage } from './pages/SelectPage';
@@ -188,6 +189,12 @@ export function DemoGeneratorApp() {
     <div className="min-h-screen py-10 px-4">
       <div className="max-w-xl mx-auto">
         <div className="text-center mb-8">
+          <Link
+            to="/"
+            className="text-gray-400 hover:text-gray-200 text-sm mb-4 inline-block"
+          >
+            &larr; Back to tools
+          </Link>
           <h1 className="text-2xl font-semibold mb-2">
             Productboard Demo Generator
           </h1>

@@ -12,6 +12,10 @@ export interface Env {
   CF_ACCESS_TEAM_DOMAIN?: string;
   REQUIRE_CLOUDFLARE_ACCESS?: string; // "true" or "false"
   ENVIRONMENT: string;
+
+  // Spark Runner (optional - for Spark Context feature)
+  SPARK_RUNNER_URL?: string;
+  SPARK_RUNNER_SECRET?: string;
 }
 
 // ==================== Request/Response Types ====================

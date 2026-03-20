@@ -158,6 +158,22 @@ wrangler secret put RUNNER_SECRET
 ### React Frontend (Cloudflare Pages)
 
 ```bash
+Add consistent navigation to all tool pages (e.g. Demo Generator, Spark Context, Insights).
+
+
+
+Requirements:
+
+Add a "← Back to tools" link at the top-left of each page
+
+It should navigate back to the landing page (/)
+
+Keep it subtle (small text, muted color, hover effect)
+
+Position it above the page title
+
+Ensure it is consistent across all tool views
+
 cd apps/web
 npm install
 npm run build

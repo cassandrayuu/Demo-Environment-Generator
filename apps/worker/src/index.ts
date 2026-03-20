@@ -10,6 +10,7 @@ import { handleListProducts, handleAnalyzeSpace } from "./routes/products";
 import { handleGenerateMappings } from "./routes/mappings";
 import { handleCreateJob, handleGetJob, handleListJobs, handleRunJob } from "./routes/jobs";
 import { handleGenerateInsights } from "./routes/insights";
+import { handleSparkContextGenerate, handleSparkContextSmoke } from "./routes/spark-context";
 
 /**
  * CORS headers
@@ -110,6 +111,14 @@ export default {
         // POST /api/insights
         else if (path === "/api/insights" && method === "POST") {
           response = await handleGenerateInsights(request, env);
+        }
+        // POST /api/spark-context (Spark Context generation)
+        else if (path === "/api/spark-context" && method === "POST") {
+          response = await handleSparkContextGenerate(request, env);
+        }
+        // POST /api/spark-context/smoke (Spark Context smoke test)
+        else if (path === "/api/spark-context/smoke" && method === "POST") {
+          response = await handleSparkContextSmoke(request, env);
         }
         // POST /api/jobs (legacy job creation)
         else if (path === "/api/jobs" && method === "POST") {

@@ -2,6 +2,56 @@
 
 This guide covers deploying the Productboard Demo Generator to Railway (Python runner) and Cloudflare (Worker + Pages frontend).
 
+---
+
+## Quick Reference: Deployment by Component
+
+| Component | Account | Auto-Deploy? | How to Deploy |
+|-----------|---------|--------------|---------------|
+| **Backend (Runner)** | Railway | ✅ Yes | Push to `main` → auto-deploys |
+| **Worker (API)** | raphcode.303@gmail.com (Cloudflare) | ✅ Yes | Push to `main` → auto-builds, then deploy version in dashboard |
+| **Frontend (Pages)** | cassandra.yu@productboard.com (Cloudflare) | ❌ Manual upload | Build locally with `VITE_API_URL`, upload `dist` folder |
+
+### Deploying Changes
+
+#### Backend Changes (`core/`, `services/runner/`)
+```bash
+git add . && git commit -m "your message" && git push origin main
+# Railway auto-deploys from main branch
+```
+
+#### Worker Changes (`apps/worker/`)
+```bash
+git add . && git commit -m "your message" && git push origin main
+# Then in Cloudflare (raphcode.303 account):
+# 1. Go to Workers & Pages → pb-demo-api → Deployments
+# 2. Wait for new build to appear in Version History
+# 3. Click "..." → Deploy to production (or click "Deploy version")
+```
+
+#### Frontend Changes (`apps/web/`)
+```bash
+cd apps/web
+VITE_API_URL="https://demo-api.pb-gtm-apps.com" npm run build
+# Then in Cloudflare (cassandra.yu account):
+# 1. Go to Pages → pb-demo-generator → Deployments
+# 2. Click "Create deployment" → "Upload assets"
+# 3. Upload contents of apps/web/dist folder
+# 4. Click Deploy
+```
+
+### Important URLs
+- **Frontend**: https://demo.pb-gtm-apps.com
+- **Worker API**: https://demo-api.pb-gtm-apps.com
+- **GitHub Repo**: https://github.com/cassandrayuu/Demo-Environment-Generator
+
+### Account Access Summary
+- **Railway**: Backend auto-deploys on push
+- **Cloudflare (raphcode.303)**: Worker with D1 database `pb-demo-db` (ID: `2997cb61-1b12-427a-ad97-9360c66ac6c6`)
+- **Cloudflare (cassandra.yu)**: Pages frontend (manual upload)
+
+---
+
 ## Architecture Overview
 
 ```
