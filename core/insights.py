@@ -387,12 +387,21 @@ def _get_email_domain(company_name: str) -> str:
     if normalized in KNOWN_COMPANY_DOMAINS:
         return KNOWN_COMPANY_DOMAINS[normalized]
 
-    # For unknown companies, create a clean domain
+    # For unknown companies, create a clean domain with hyphens
+    # This preserves word boundaries: "City of Phoenix" -> "city-of-phoenix.gov"
     # Remove common suffixes like Inc, LLC, LLP, Corp, etc.
     clean = re.sub(r'\s+(inc\.?|llc\.?|llp\.?|corp\.?|ltd\.?|company|co\.?)$', '', normalized, flags=re.IGNORECASE)
-    # Convert to domain format: "Wells Fargo Bank" -> "wellsfargobank"
-    domain = re.sub(r'[^a-z0-9]', '', clean.lower())
-    return f"{domain}.com"
+
+    # Check if it's a government entity
+    is_gov = any(term in clean for term in ['city of', 'state of', 'county', 'department', 'dot', 'dps'])
+
+    # Replace spaces with hyphens and remove special chars
+    domain = re.sub(r'[^a-z0-9\s]', '', clean.lower())
+    domain = re.sub(r'\s+', '-', domain.strip())
+
+    # Use .gov for government, .com for others
+    tld = ".gov" if is_gov else ".com"
+    return f"{domain}{tld}"
 
 
 def _insight_to_note(insight: Dict, target_company: str) -> GeneratedNote:
