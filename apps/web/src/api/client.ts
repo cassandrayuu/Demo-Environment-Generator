@@ -198,6 +198,7 @@ export interface InsightsProgressEvent {
   total: number;
   note?: string;
   company?: string;
+  phase?: 'generating' | 'creating';
 }
 
 export interface InsightsCompleteEvent {

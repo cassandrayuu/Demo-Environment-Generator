@@ -131,23 +131,12 @@ export function SelectPage({
       </button>
 
       <div className="card">
-        {/* Step explanation banner */}
-        <div className="bg-primary-900/30 border border-primary-700/50 rounded-lg p-3 mb-4">
-          <div className="flex items-start gap-2">
-            <span className="text-primary-400 text-lg">💡</span>
-            <div className="text-sm text-gray-300">
-              <strong>What happens next?</strong> The products you select below will be renamed to look like they belong to <strong className="text-primary-300">{company}</strong>.
-              The names shown below are your <em>current</em> workspace products — we'll generate new names tailored to {company}'s industry.
-            </div>
-          </div>
-        </div>
-
         <div className="bg-gray-700/50 rounded-lg p-3 mb-4">
           <div className="text-sm text-gray-300">
-            <strong>Your Workspace</strong> • {products.length} products found
+            Below are existing products found in your space. Choose which products to rename for <strong className="text-primary-300">{company}</strong>.
           </div>
           <div className="text-xs text-gray-400 mt-1">
-            Select 1-2 products to rename for the demo
+            {products.length} products found • Select 1-2
           </div>
         </div>
 
@@ -194,8 +183,7 @@ export function SelectPage({
 
                 <div className="flex-1">
                   <div className="font-medium">{product.name}</div>
-                  <div className="text-xs text-gray-500 italic">Current name in your workspace</div>
-                  <div className="text-sm text-gray-400 mt-0.5">
+                  <div className="text-sm text-gray-400">
                     {product.componentCount} components •{' '}
                     {product.featureCount} features
                   </div>

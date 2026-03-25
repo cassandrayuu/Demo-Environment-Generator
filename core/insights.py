@@ -863,12 +863,13 @@ def generate_insights_standalone(
 
         print(f"[Insights Standalone] Splitting into {len(batches)} parallel batches", flush=True)
 
-        # Yield initial progress
+        # Yield phase: generating
         yield {
             "type": "progress",
+            "phase": "generating",
             "current": 0,
             "total": count,
-            "note": f"Generating {len(batches)} batches in parallel...",
+            "note": f"Generating content with AI...",
             "company": company,
         }
 
@@ -934,6 +935,16 @@ def generate_insights_standalone(
         # Create notes in parallel batches of 10 (well under 50/sec rate limit)
         print(f"[Insights Standalone] Creating {total} notes in parallel (10 concurrent)...", flush=True)
 
+        # Yield phase: creating
+        yield {
+            "type": "progress",
+            "phase": "creating",
+            "current": 0,
+            "total": total,
+            "note": "Creating notes in Productboard...",
+            "company": company,
+        }
+
         pb_batch_size = 10
         completed_count = 0
 
@@ -956,6 +967,7 @@ def generate_insights_standalone(
                         created += 1
                         yield {
                             "type": "progress",
+                            "phase": "creating",
                             "current": completed_count,
                             "total": total,
                             "note": result["note"].title[:60],
@@ -966,6 +978,7 @@ def generate_insights_standalone(
                         failed += 1
                         yield {
                             "type": "progress",
+                            "phase": "creating",
                             "current": completed_count,
                             "total": total,
                             "note": f"Failed: {result['note'].title[:40]}",

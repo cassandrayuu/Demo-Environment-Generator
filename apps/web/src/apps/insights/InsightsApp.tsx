@@ -21,6 +21,7 @@ interface InsightsState {
   loading: boolean;
   error: string | null;
   // Progress state
+  phase: 'generating' | 'creating' | null;
   currentNote: number;
   totalNotes: number;
   lastNote: string | null;
@@ -40,6 +41,7 @@ const getInitialState = (): InsightsState => {
     count: 10,
     loading: false,
     error: null,
+    phase: null,
     currentNote: 0,
     totalNotes: 0,
     lastNote: null,
@@ -72,6 +74,7 @@ export function InsightsApp() {
       loading: true,
       error: null,
       step: 'progress',
+      phase: 'generating',
       currentNote: 0,
       totalNotes: state.count,
       lastNote: null,
@@ -79,6 +82,7 @@ export function InsightsApp() {
 
     const handleProgress = (event: InsightsProgressEvent) => {
       updateState({
+        phase: event.phase || state.phase,
         currentNote: event.current,
         totalNotes: event.total,
         lastNote: event.note || null,
@@ -275,26 +279,73 @@ export function InsightsApp() {
                     />
                   </svg>
                 </div>
-                <h2 className="text-xl font-semibold mb-2">Generating Insights</h2>
-                <p className="text-gray-400">
-                  Creating note {state.currentNote} of {state.totalNotes}...
-                </p>
+
+                {state.phase === 'generating' ? (
+                  <>
+                    <h2 className="text-xl font-semibold mb-2">Generating Content</h2>
+                    <p className="text-gray-400">
+                      AI is writing {state.totalNotes} realistic feedback notes...
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      This may take a moment for larger batches
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-xl font-semibold mb-2">Creating Notes</h2>
+                    <p className="text-gray-400">
+                      Saving note {state.currentNote} of {state.totalNotes} to Productboard...
+                    </p>
+                  </>
+                )}
               </div>
 
-              {/* Progress bar */}
-              <div className="w-full bg-gray-700 rounded-full h-2 mb-4">
-                <div
-                  className="bg-primary-500 h-2 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${(state.currentNote / state.totalNotes) * 100}%`,
-                  }}
-                />
+              {/* Step indicators */}
+              <div className="flex justify-center gap-3 mb-6">
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs ${
+                  state.phase === 'generating'
+                    ? 'bg-primary-500/20 text-primary-400 ring-1 ring-primary-500/50'
+                    : 'bg-green-500/20 text-green-400'
+                }`}>
+                  {state.phase !== 'generating' && <span>✓</span>}
+                  <span>1. Generate</span>
+                </div>
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs ${
+                  state.phase === 'creating'
+                    ? 'bg-primary-500/20 text-primary-400 ring-1 ring-primary-500/50'
+                    : 'bg-gray-700 text-gray-500'
+                }`}>
+                  <span>2. Save</span>
+                </div>
               </div>
 
-              {state.lastNote && (
-                <p className="text-sm text-gray-500 truncate px-4">
-                  Last: {state.lastNote}
-                </p>
+              {/* Progress bar - only show during creating phase */}
+              {state.phase === 'creating' && (
+                <>
+                  <div className="w-full bg-gray-700 rounded-full h-2 mb-4">
+                    <div
+                      className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                      style={{
+                        width: `${(state.currentNote / state.totalNotes) * 100}%`,
+                      }}
+                    />
+                  </div>
+
+                  {state.lastNote && (
+                    <p className="text-sm text-gray-500 truncate px-4">
+                      {state.lastNote}
+                    </p>
+                  )}
+                </>
+              )}
+
+              {/* Generating phase - show pulsing indicator */}
+              {state.phase === 'generating' && (
+                <div className="flex justify-center gap-1">
+                  <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+                  <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
+                </div>
               )}
             </div>
           </div>
