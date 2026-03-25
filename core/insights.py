@@ -755,6 +755,36 @@ Mix:
 Return ONLY valid JSON with exactly {count} items."""
 
 
+def _generate_batch(
+    batch_num: int,
+    batch_size: int,
+    company: str,
+    website: str,
+    context_text: str,
+    provider: str,
+    api_key: str,
+) -> List[Dict]:
+    """Generate a single batch of insights. Called in parallel."""
+    from .generator import _call_gemini, _call_anthropic, DEFAULT_GEMINI_MODEL
+
+    print(f"[Insights Batch {batch_num}] Starting generation of {batch_size} notes...", flush=True)
+
+    prompt = _build_insights_prompt_with_count(company, website, context_text, batch_size)
+
+    if provider == "gemini":
+        gemini_model = os.environ.get("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
+        response_text = _call_gemini(prompt, api_key, gemini_model)
+    else:
+        response_text = _call_anthropic(prompt, api_key)
+
+    print(f"[Insights Batch {batch_num}] Response received, length: {len(response_text)}", flush=True)
+
+    insights = _parse_insights_response(response_text)
+    print(f"[Insights Batch {batch_num}] Parsed {len(insights)} insights", flush=True)
+
+    return insights
+
+
 def generate_insights_standalone(
     token: str,
     company: str,
@@ -764,11 +794,8 @@ def generate_insights_standalone(
     """
     Generate customer feedback notes as a standalone operation with streaming progress.
 
-    Unlike generate_insights(), this function:
-    - Does NOT require a pre-defined features list
-    - Generates features from company/website context via LLM
-    - Yields progress events for each note created
-    - Always applies (creates notes in Productboard)
+    Uses parallel batch generation for speed - splits count into batches and runs
+    LLM calls concurrently.
 
     Args:
         token: Productboard API token
@@ -782,24 +809,22 @@ def generate_insights_standalone(
         - {"type": "complete", "created": 10, "failed": 0}
         - {"type": "error", "message": "..."}
     """
-    from .generator import _call_gemini, _call_anthropic, DEFAULT_GEMINI_MODEL, fetch_website_context
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from .generator import fetch_website_context
 
     client = default_client
     created = 0
     failed = 0
 
-    print(f"[Insights Standalone] Starting generation for {company}, count={count}", flush=True)
+    print(f"[Insights Standalone] Starting PARALLEL generation for {company}, count={count}", flush=True)
 
     try:
-        # Fetch website context for grounding
+        # Fetch website context for grounding (do this once, share across batches)
         print(f"[Insights Standalone] Fetching website context from {website}", flush=True)
         context = fetch_website_context(website)
         context_text = context.to_prompt_section() if context else ""
 
-        # Build prompt for N notes
-        prompt = _build_insights_prompt_with_count(company, website, context_text, count)
-
-        # Call LLM
+        # Get LLM provider and API key
         provider = os.environ.get("LLM_PROVIDER", "gemini").lower()
         print(f"[Insights Standalone] Using LLM provider: {provider}", flush=True)
 
@@ -808,29 +833,69 @@ def generate_insights_standalone(
             if not api_key:
                 yield {"type": "error", "message": "GEMINI_API_KEY not set"}
                 return
-            gemini_model = os.environ.get("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
-            response_text = _call_gemini(prompt, api_key, gemini_model)
         else:
             api_key = os.environ.get("ANTHROPIC_API_KEY")
             if not api_key:
                 yield {"type": "error", "message": "ANTHROPIC_API_KEY not set"}
                 return
-            response_text = _call_anthropic(prompt, api_key)
 
-        print(f"[Insights Standalone] LLM response received, length: {len(response_text)}", flush=True)
+        # Split into batches (10 notes per batch, max 5 parallel)
+        batch_size = 10
+        num_batches = (count + batch_size - 1) // batch_size  # ceil division
+        batches = []
+        remaining = count
+        for i in range(num_batches):
+            size = min(batch_size, remaining)
+            batches.append((i + 1, size))
+            remaining -= size
 
-        # Parse response
-        try:
-            insights = _parse_insights_response(response_text)
-        except Exception as e:
-            yield {"type": "error", "message": f"Failed to parse LLM response: {e}"}
+        print(f"[Insights Standalone] Splitting into {len(batches)} parallel batches", flush=True)
+
+        # Yield initial progress
+        yield {
+            "type": "progress",
+            "current": 0,
+            "total": count,
+            "note": f"Generating {len(batches)} batches in parallel...",
+            "company": company,
+        }
+
+        # Run batches in parallel
+        all_insights = []
+        with ThreadPoolExecutor(max_workers=min(5, len(batches))) as executor:
+            futures = {
+                executor.submit(
+                    _generate_batch,
+                    batch_num,
+                    size,
+                    company,
+                    website,
+                    context_text,
+                    provider,
+                    api_key,
+                ): batch_num
+                for batch_num, size in batches
+            }
+
+            for future in as_completed(futures):
+                batch_num = futures[future]
+                try:
+                    batch_insights = future.result()
+                    all_insights.extend(batch_insights)
+                    print(f"[Insights Standalone] Batch {batch_num} completed with {len(batch_insights)} notes", flush=True)
+                except Exception as e:
+                    print(f"[Insights Standalone] Batch {batch_num} failed: {e}", flush=True)
+                    # Continue with other batches
+
+        print(f"[Insights Standalone] All batches complete. Total insights: {len(all_insights)}", flush=True)
+
+        if not all_insights:
+            yield {"type": "error", "message": "All batches failed to generate insights"}
             return
 
-        print(f"[Insights Standalone] Parsed {len(insights)} insights", flush=True)
-
         # Create each note and yield progress
-        total = len(insights)
-        for i, insight in enumerate(insights, 1):
+        total = len(all_insights)
+        for i, insight in enumerate(all_insights, 1):
             note = _insight_to_note(insight, company)
 
             try:
