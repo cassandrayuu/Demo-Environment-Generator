@@ -867,7 +867,7 @@ def _call_anthropic(prompt: str, api_key: str) -> str:
         print(f"[Generator] Creating Anthropic client...", flush=True)
         client = anthropic.Anthropic(api_key=api_key)
         # Use Haiku for faster generation (Sonnet is overkill for note generation)
-        model = "claude-3-5-haiku-20241022"
+        model = "claude-3-5-haiku-latest"
         print(f"[Generator] Sending request to Claude ({model})...", flush=True)
         message = client.messages.create(
             model=model,
