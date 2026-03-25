@@ -59,6 +59,7 @@ async def generate_insights(
                         "total": event["total"],
                         "note": event.get("note"),
                         "company": event.get("company"),
+                        "phase": event.get("phase"),
                     }
                     yield f"event: progress\ndata: {json.dumps(data)}\n\n"
                 elif event["type"] == "complete":
