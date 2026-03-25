@@ -896,11 +896,13 @@ def generate_insights_standalone(
             yield {"type": "error", "message": "All batches failed to generate insights"}
             return
 
-        # Create each note and yield progress
-        total = len(all_insights)
-        for i, insight in enumerate(all_insights, 1):
-            note = _insight_to_note(insight, company)
+        # Convert insights to notes
+        notes = [_insight_to_note(insight, company) for insight in all_insights]
+        total = len(notes)
 
+        # Helper function to create a single note (for parallel execution)
+        def create_single_note(idx: int, note: GeneratedNote) -> Dict:
+            """Create a note and return result dict."""
             try:
                 note_id = client.create_note(
                     token=token,
@@ -911,42 +913,55 @@ def generate_insights_standalone(
                     source_record_id=str(uuid.uuid4()),
                     company_name=note.company_name,
                 )
-
                 if note_id:
-                    print(f"[Insights Standalone] Created note {i}/{total}: {note_id}", flush=True)
-                    created += 1
-
                     # Tag with company name
                     client.tag_note(token, note_id, company)
-
-                    yield {
-                        "type": "progress",
-                        "current": i,
-                        "total": total,
-                        "note": note.title[:60],
-                        "company": note.company_name,
-                    }
+                    return {"idx": idx, "success": True, "note_id": note_id, "note": note}
                 else:
-                    print(f"[Insights Standalone] Failed to create note {i}/{total}", flush=True)
-                    failed += 1
-                    yield {
-                        "type": "progress",
-                        "current": i,
-                        "total": total,
-                        "note": f"Failed: {note.title[:40]}",
-                        "company": note.company_name,
-                    }
-
+                    return {"idx": idx, "success": False, "error": "No note_id returned", "note": note}
             except ProductboardError as e:
-                print(f"[Insights Standalone] Error creating note {i}/{total}: {e}", flush=True)
-                failed += 1
-                yield {
-                    "type": "progress",
-                    "current": i,
-                    "total": total,
-                    "note": f"Error: {str(e)[:40]}",
-                    "company": note.company_name,
+                return {"idx": idx, "success": False, "error": str(e), "note": note}
+
+        # Create notes in parallel batches of 10 (well under 50/sec rate limit)
+        print(f"[Insights Standalone] Creating {total} notes in parallel (10 concurrent)...", flush=True)
+
+        pb_batch_size = 10
+        completed_count = 0
+
+        for batch_start in range(0, total, pb_batch_size):
+            batch_end = min(batch_start + pb_batch_size, total)
+            batch_notes = [(i, notes[i]) for i in range(batch_start, batch_end)]
+
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = {
+                    executor.submit(create_single_note, idx, note): idx
+                    for idx, note in batch_notes
                 }
+
+                for future in as_completed(futures):
+                    result = future.result()
+                    completed_count += 1
+
+                    if result["success"]:
+                        print(f"[Insights Standalone] Created note {completed_count}/{total}: {result['note_id']}", flush=True)
+                        created += 1
+                        yield {
+                            "type": "progress",
+                            "current": completed_count,
+                            "total": total,
+                            "note": result["note"].title[:60],
+                            "company": result["note"].company_name,
+                        }
+                    else:
+                        print(f"[Insights Standalone] Failed note {completed_count}/{total}: {result['error']}", flush=True)
+                        failed += 1
+                        yield {
+                            "type": "progress",
+                            "current": completed_count,
+                            "total": total,
+                            "note": f"Failed: {result['note'].title[:40]}",
+                            "company": result["note"].company_name,
+                        }
 
         # Done
         yield {
