@@ -830,8 +830,19 @@ def _call_gemini(prompt: str, api_key: str, model_name: str = DEFAULT_GEMINI_MOD
             model=model_name,
             contents=prompt,
         )
-        print(f"[Generator] Gemini response received, length: {len(response.text)}", flush=True)
-        return response.text
+        # Handle empty/blocked responses
+        text = response.text if response.text else ""
+        print(f"[Generator] Gemini response received, length: {len(text)}", flush=True)
+        if not text.strip():
+            # Check for blocking reasons
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'finish_reason'):
+                    print(f"[Generator] Gemini finish_reason: {candidate.finish_reason}", flush=True)
+                if hasattr(candidate, 'safety_ratings'):
+                    print(f"[Generator] Gemini safety_ratings: {candidate.safety_ratings}", flush=True)
+            raise GenerationError("Gemini returned empty response (possibly blocked by safety filters)")
+        return text
     except Exception as e:
         print(f"[Generator] Gemini API error: {type(e).__name__}: {e}", flush=True)
         error_str = str(e).lower()
@@ -853,14 +864,19 @@ def _call_anthropic(prompt: str, api_key: str) -> str:
         )
 
     try:
+        print(f"[Generator] Creating Anthropic client...", flush=True)
         client = anthropic.Anthropic(api_key=api_key)
+        print(f"[Generator] Sending request to Claude...", flush=True)
         message = client.messages.create(
             model="claude-sonnet-4-20250514",
-            max_tokens=4096,
+            max_tokens=16384,  # Increased for longer outputs (40+ notes)
             messages=[{"role": "user", "content": prompt}],
         )
-        return message.content[0].text
+        text = message.content[0].text
+        print(f"[Generator] Claude response received, length: {len(text)}", flush=True)
+        return text
     except Exception as e:
+        print(f"[Generator] Claude API error: {type(e).__name__}: {e}", flush=True)
         raise GenerationError(f"Claude API call failed: {e}")
 
 
