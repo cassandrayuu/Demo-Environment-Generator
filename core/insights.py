@@ -691,13 +691,16 @@ You must infer realistic product features from the company/website context.
 
 ## Requirements
 
-### 1. Customer identity
-Each note must come from a REALISTIC COMPANY NAME (not a person):
-- For consumer apps (Instagram, TikTok, etc.) → brands, agencies, creators (e.g., "Gymshark", "Sephora", "SociallyIn")
-- For delivery/food (DoorDash, Uber Eats) → restaurants, chains, merchants
-- For B2B software → actual company-style names matching the industry
+### 1. Customer identity (CRITICAL)
+Each note must come from a SHORT, SIMPLE company name (1-3 words max):
+- Use well-known real companies: "Nike", "Coca-Cola", "Delta Airlines", "Marriott", "Hilton"
+- Or simple fictional names: "Acme Corp", "Summit Industries", "Pacific Trading", "Metro Bank"
+- For government: "City of Austin", "State of Ohio", "Cook County" (NOT long department names)
 
-DO NOT use placeholders like "User123" or "Test Company".
+WRONG: "Alleghenycountytreasuryoffice", "Oklahomadepartmentoftransportation"
+RIGHT: "Allegheny County", "Oklahoma DOT", "City of Portland", "Harris County"
+
+DO NOT use long concatenated names or full department titles.
 
 ---
 
