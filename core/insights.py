@@ -409,10 +409,9 @@ def _insight_to_note(insight: Dict, target_company: str) -> GeneratedNote:
     # Use company name from insight (the customer), fall back to generic
     customer_company = insight.get("company", "Customer")
 
-    # Generate a unique email that doesn't expose company name in domain
-    # This prevents Productboard from deriving customer name from email domain
-    unique_id = uuid.uuid4().hex[:8]
-    email = f"feedback-{unique_id}@customer.productboard-demo.com"
+    # Get proper email domain (uses known domains or generates clean one)
+    email_domain = _get_email_domain(customer_company)
+    email = f"feedback@{email_domain}"
 
     feature = insight.get("feature")
     features_ref = [feature] if feature else []
