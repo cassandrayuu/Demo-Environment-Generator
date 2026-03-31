@@ -60,6 +60,7 @@ export async function handleRunJob(
         token: body.token,
         selectedProductIds: body.selectedProductIds,
         mode: body.mode || "apply",
+        includeStrategy: body.includeStrategy ?? true,
         mappings: body.mappings,
         options: body.options,
       }),

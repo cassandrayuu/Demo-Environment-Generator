@@ -131,6 +131,7 @@ export interface RunJobRequest {
   token: string;
   selectedProductIds: string[];
   mode?: "dry-run" | "apply";
+  includeStrategy?: boolean;
   mappings?: MappingsSchema;
   options?: FlexibleOptions;
 }
