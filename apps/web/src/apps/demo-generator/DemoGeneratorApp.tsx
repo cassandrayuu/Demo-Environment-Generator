@@ -30,6 +30,7 @@ const getInitialState = (): AppState => {
     rememberToken: !!savedToken,
     products: [],
     selectedProductIds: [],
+    includeStrategy: true, // Enabled by default
     jobResult: null,
     loading: false,
     error: null,
@@ -165,6 +166,7 @@ export function DemoGeneratorApp() {
           website: state.website,
           token: state.token,
           selectedProductIds: state.selectedProductIds,
+          includeStrategy: state.includeStrategy,
         },
         handleStep,
         handleComplete,
@@ -227,10 +229,12 @@ export function DemoGeneratorApp() {
             company={state.company}
             products={state.products}
             selectedProductIds={state.selectedProductIds}
+            includeStrategy={state.includeStrategy}
             loading={state.loading}
             error={state.error}
             analyzeWarnings={state.analyzeWarnings}
             onToggleProduct={handleToggleProduct}
+            onToggleStrategy={(includeStrategy) => updateState({ includeStrategy })}
             onBack={() => updateState({ step: 'input', error: null })}
             onGenerate={handleGenerate}
           />

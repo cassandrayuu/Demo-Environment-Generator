@@ -145,6 +145,7 @@ async def run_job(
                 mode=request.mode.value,
                 mappings=mappings,
                 options=options,
+                include_strategy=request.includeStrategy,
             ):
                 if event["type"] == "step":
                     step = event["step"]

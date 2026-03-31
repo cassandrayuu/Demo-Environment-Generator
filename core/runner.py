@@ -377,12 +377,17 @@ def run_poc_streaming(
     mappings: Optional[GeneratedMappings] = None,
     client: Optional[ProductboardClient] = None,
     options: Optional[FlexibleOptions] = None,
+    include_strategy: bool = True,
 ):
     """
     Run the POC setup with streaming progress updates.
 
     Uses flexible generation that adapts to the actual structure of selected products.
     LLM provider is configured via LLM_PROVIDER env var (gemini or anthropic).
+
+    Args:
+        include_strategy: Whether to rename strategy items (objectives/initiatives).
+                         If False, the rename_strategy step is skipped.
 
     Yields events as each step completes:
     - {"type": "step", "step": StepResult}
@@ -650,18 +655,29 @@ def run_poc_streaming(
     if hierarchy_result.status == StepStatus.ERROR:
         errors.append(f"Hierarchy rename failed: {hierarchy_result.error}")
 
-    # Step 4: Rename strategy hierarchy
-    strategy_result = rename_strategy(
-        token=token,
-        mapping=mappings.strategy_mapping,
-        apply=apply,
-        client=client,
-    )
-    steps.append(strategy_result)
-    yield {"type": "step", "step": strategy_result}
+    # Step 4: Rename strategy hierarchy (if enabled)
+    if include_strategy:
+        strategy_result = rename_strategy(
+            token=token,
+            mapping=mappings.strategy_mapping,
+            apply=apply,
+            client=client,
+        )
+        steps.append(strategy_result)
+        yield {"type": "step", "step": strategy_result}
 
-    if strategy_result.status == StepStatus.ERROR:
-        errors.append(f"Strategy rename failed: {strategy_result.error}")
+        if strategy_result.status == StepStatus.ERROR:
+            errors.append(f"Strategy rename failed: {strategy_result.error}")
+    else:
+        # Skip strategy renaming
+        strategy_result = StepResult(
+            name="rename_strategy",
+            status=StepStatus.SKIPPED,
+            summary={"skipped": True, "reason": "Strategy renaming disabled by user"},
+            logs=["Strategy renaming skipped (disabled by user)"],
+        )
+        steps.append(strategy_result)
+        yield {"type": "step", "step": strategy_result}
 
     # Step 5: Generate user insights
     insights_result = generate_insights(

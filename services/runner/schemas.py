@@ -117,6 +117,9 @@ class RunJobRequest(BaseModel):
         ..., min_length=1, max_length=2, description="IDs of 1-2 products to rename"
     )
     mode: JobMode = Field(default=JobMode.APPLY, description="Run mode (apply by default)")
+    includeStrategy: bool = Field(
+        default=True, description="Whether to rename strategy items (objectives/initiatives)"
+    )
     mappings: Optional[MappingsSchema] = Field(
         default=None, description="Pre-generated mappings (generated if not provided)"
     )

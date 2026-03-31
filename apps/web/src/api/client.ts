@@ -82,6 +82,7 @@ export interface RunJobParams {
   website: string;
   token: string;
   selectedProductIds: string[];
+  includeStrategy?: boolean;
   options?: FlexibleOptions;
 }
 

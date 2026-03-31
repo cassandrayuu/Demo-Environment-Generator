@@ -5,10 +5,12 @@ interface SelectPageProps {
   company: string;
   products: ProductInfo[];
   selectedProductIds: string[];
+  includeStrategy: boolean;
   loading: boolean;
   error: string | null;
   analyzeWarnings: string[];
   onToggleProduct: (productId: string) => void;
+  onToggleStrategy: (include: boolean) => void;
   onBack: () => void;
   onGenerate: () => void;
 }
@@ -82,10 +84,12 @@ export function SelectPage({
   company,
   products,
   selectedProductIds,
+  includeStrategy,
   loading,
   error,
   analyzeWarnings,
   onToggleProduct,
+  onToggleStrategy,
   onBack,
   onGenerate,
 }: SelectPageProps) {
@@ -221,6 +225,31 @@ export function SelectPage({
           </div>
         )}
 
+        {/* Additional options */}
+        <div className="mt-4 p-4 bg-gray-700/30 border border-gray-700 rounded-lg">
+          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+            Additional Options
+          </div>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <div
+              className={`w-5 h-5 mt-0.5 rounded flex-shrink-0 border-2 flex items-center justify-center transition-colors ${
+                includeStrategy
+                  ? 'bg-primary-500 border-primary-500'
+                  : 'border-gray-600 hover:border-gray-500'
+              }`}
+              onClick={() => onToggleStrategy(!includeStrategy)}
+            >
+              {includeStrategy && <span className="text-white text-xs">✓</span>}
+            </div>
+            <div className="flex-1" onClick={() => onToggleStrategy(!includeStrategy)}>
+              <div className="text-sm text-gray-200">Also rename strategy items</div>
+              <div className="text-xs text-gray-500 mt-1">
+                Renames the first 3 objectives and 6 initiatives (sorted alphabetically)
+              </div>
+            </div>
+          </label>
+        </div>
+
         {/* Preview accordion (collapsed by default) */}
         <div className="mt-4 border border-gray-700 rounded-lg overflow-hidden">
           <button
@@ -291,24 +320,26 @@ export function SelectPage({
                   )}
 
                   {/* Strategy Hierarchy Preview */}
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
-                      Strategy Hierarchy
-                    </h4>
-                    <div className="text-xs text-gray-500 mb-2">
-                      Objectives that will be created:
+                  {includeStrategy && (
+                    <div>
+                      <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+                        Strategy Hierarchy
+                      </h4>
+                      <div className="text-xs text-gray-500 mb-2">
+                        Objectives that will be renamed:
+                      </div>
+                      <div className="space-y-1">
+                        {previewExamples.objectives.map((obj, idx) => (
+                          <div key={idx} className="text-gray-300 text-sm">
+                            • {obj}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2">
+                        + 6 initiatives and key results
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      {previewExamples.objectives.map((obj, idx) => (
-                        <div key={idx} className="text-gray-300 text-sm">
-                          • {obj}
-                        </div>
-                      ))}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-2">
-                      + 6 initiatives and key results
-                    </div>
-                  </div>
+                  )}
 
                   {/* Insights Preview */}
                   <div>

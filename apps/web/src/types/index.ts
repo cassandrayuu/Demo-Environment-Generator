@@ -58,6 +58,7 @@ export interface AppState {
   rememberToken: boolean;
   products: ProductInfo[];
   selectedProductIds: string[];
+  includeStrategy: boolean;
   jobResult: JobResult | null;
   loading: boolean;
   error: string | null;
