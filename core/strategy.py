@@ -30,8 +30,9 @@ class StrategyHierarchy:
 
 
 def _get_entity_name(entity: Dict[str, Any]) -> str:
-    """Extract name from entity."""
-    return entity.get("name", "") or ""
+    """Extract name from entity (v2 API has fields nested under 'fields')."""
+    fields = entity.get("fields", {})
+    return fields.get("name", "") or ""
 
 
 def build_strategy_hierarchy(

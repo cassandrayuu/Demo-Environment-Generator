@@ -15,8 +15,8 @@ from typing import Any, Dict, List, Optional
 import requests
 
 # API endpoints
-API_BASE_V2 = "https://api.productboard.com/v2"
-API_BASE_V1 = "https://api.productboard.com"
+API_BASE = "https://api.productboard.com/v2"
+API_BASE_V1 = "https://api.productboard.com"  # Keep v1 for notes until tag creation is in v2
 
 # Retry configuration
 MAX_RETRIES = 5
@@ -219,7 +219,7 @@ class ProductboardClient:
     def fetch_products(self, token: str) -> List[Dict[str, Any]]:
         """Fetch all products."""
         return self._fetch_all_paginated(
-            f"{API_BASE_V2}/entities",
+            f"{API_BASE}/entities",
             token,
             params={"type[]": "product"},
         )
@@ -227,7 +227,7 @@ class ProductboardClient:
     def fetch_components(self, token: str) -> List[Dict[str, Any]]:
         """Fetch all components."""
         return self._fetch_all_paginated(
-            f"{API_BASE_V2}/entities",
+            f"{API_BASE}/entities",
             token,
             params={"type[]": "component"},
         )
@@ -235,14 +235,14 @@ class ProductboardClient:
     def fetch_features(self, token: str) -> List[Dict[str, Any]]:
         """Fetch all features."""
         return self._fetch_all_paginated(
-            f"{API_BASE_V2}/entities",
+            f"{API_BASE}/entities",
             token,
             params={"type[]": "feature"},
         )
 
     def update_entity(self, token: str, entity_id: str, new_name: str) -> bool:
         """Update an entity's name."""
-        url = f"{API_BASE_V2}/entities/{entity_id}"
+        url = f"{API_BASE}/entities/{entity_id}"
         payload = {"data": {"fields": {"name": new_name}}}
 
         response = self._make_request("PATCH", url, token, json_data=payload)
@@ -252,45 +252,53 @@ class ProductboardClient:
 
     def fetch_objectives(self, token: str) -> List[Dict[str, Any]]:
         """Fetch all objectives."""
-        return self._fetch_all_paginated(f"{API_BASE_V1}/objectives", token)
+        return self._fetch_all_paginated(
+            f"{API_BASE}/entities",
+            token,
+            params={"type[]": "objective"},
+        )
 
     def fetch_key_results(self, token: str, objective_id: str) -> List[Dict[str, Any]]:
         """Fetch key results for a specific objective."""
         return self._fetch_all_paginated(
-            f"{API_BASE_V1}/key-results",
+            f"{API_BASE}/entities",
             token,
-            params={"objective.id": objective_id},
+            params={"type[]": "keyResult", "parent[id]": objective_id},
         )
 
     def fetch_initiatives(self, token: str) -> List[Dict[str, Any]]:
         """Fetch all initiatives."""
-        return self._fetch_all_paginated(f"{API_BASE_V1}/initiatives", token)
+        return self._fetch_all_paginated(
+            f"{API_BASE}/entities",
+            token,
+            params={"type[]": "initiative"},
+        )
 
     def update_objective(self, token: str, objective_id: str, new_name: str) -> bool:
         """Update an objective's name."""
-        url = f"{API_BASE_V1}/objectives/{objective_id}"
-        payload = {"data": {"name": new_name}}
+        url = f"{API_BASE}/entities/{objective_id}"
+        payload = {"data": {"fields": {"name": new_name}}}
 
         response = self._make_request("PATCH", url, token, json_data=payload)
         return response.status_code in (200, 204)
 
     def update_key_result(self, token: str, kr_id: str, new_name: str) -> bool:
         """Update a key result's name."""
-        url = f"{API_BASE_V1}/key-results/{kr_id}"
-        payload = {"data": {"name": new_name}}
+        url = f"{API_BASE}/entities/{kr_id}"
+        payload = {"data": {"fields": {"name": new_name}}}
 
         response = self._make_request("PATCH", url, token, json_data=payload)
         return response.status_code in (200, 204)
 
     def update_initiative(self, token: str, initiative_id: str, new_name: str) -> bool:
         """Update an initiative's name."""
-        url = f"{API_BASE_V1}/initiatives/{initiative_id}"
-        payload = {"data": {"name": new_name}}
+        url = f"{API_BASE}/entities/{initiative_id}"
+        payload = {"data": {"fields": {"name": new_name}}}
 
         response = self._make_request("PATCH", url, token, json_data=payload)
         return response.status_code in (200, 204)
 
-    # ==================== Notes APIs ====================
+    # ==================== Notes APIs (v1 - until tag creation is available in v2) ====================
 
     def create_note(
         self,
@@ -306,6 +314,8 @@ class ProductboardClient:
         Create a note and return its ID.
 
         Returns None if creation failed.
+
+        Note: Using v1 API until tag creation is available in v2.
         """
         url = f"{API_BASE_V1}/notes"
         payload = {
@@ -329,7 +339,7 @@ class ProductboardClient:
         return None
 
     def tag_note(self, token: str, note_id: str, tag_name: str) -> bool:
-        """Add a tag to a note."""
+        """Add a tag to a note (v1 API - creates tag if needed)."""
         encoded_tag = requests.utils.quote(tag_name, safe="")
         url = f"{API_BASE_V1}/notes/{note_id}/tags/{encoded_tag}"
 
@@ -348,7 +358,7 @@ class ProductboardClient:
             # Try to fetch a minimal amount of data
             self._make_request(
                 "GET",
-                f"{API_BASE_V2}/entities",
+                f"{API_BASE}/entities",
                 token,
                 params={"type[]": "product", "page[size]": 1},
             )

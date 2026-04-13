@@ -46,8 +46,9 @@ class ProductHierarchy:
 
 
 def _get_entity_name(entity: Dict[str, Any]) -> str:
-    """Extract name from entity."""
-    return entity.get("name", "") or entity.get("fields", {}).get("name", "")
+    """Extract name from entity (v2 API has fields nested under 'fields')."""
+    fields = entity.get("fields", {})
+    return fields.get("name", "") or ""
 
 
 def _get_child_ids(entity: Dict[str, Any], child_type: str) -> List[str]:
