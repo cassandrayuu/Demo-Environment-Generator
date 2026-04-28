@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+// Use direct Spark Runner URL to bypass Cloudflare Worker timeout (~30s limit)
+const SPARK_RUNNER_URL = import.meta.env.VITE_SPARK_RUNNER_URL || '';
 
 const SPARK_PROMPT = 'Recreate each document in my context folder — do not make edits or run analysis, just recreate.';
 
@@ -211,7 +212,7 @@ export function SparkContextApp() {
     });
 
     try {
-      const response = await fetch(`${API_URL}/api/spark-context`, {
+      const response = await fetch(`${SPARK_RUNNER_URL}/api/spark-context`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

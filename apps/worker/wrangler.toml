@@ -18,6 +18,8 @@ database_id = "2997cb61-1b12-427a-ad97-9360c66ac6c6"
 ENVIRONMENT = "production"
 # Set to "false" for temporary/MVP deployments without Cloudflare Access
 REQUIRE_CLOUDFLARE_ACCESS = "false"
+# Main Runner URL (Railway) - for demo generator and insights
+RUNNER_URL = "https://demo-environment-generator-production.up.railway.app"
 # Spark Context Runner URL (Railway)
 SPARK_RUNNER_URL = "https://spark-context-runner-production.up.railway.app"
 

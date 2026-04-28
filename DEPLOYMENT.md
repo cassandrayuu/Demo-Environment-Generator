@@ -7,7 +7,7 @@ This guide covers deploying the Productboard Demo Generator to Railway (Python r
 ## Quick Reference: Deployment by Component
 
 | Component | Account | Auto-Deploy? | How to Deploy |
-|-----------|---------|--------------|---------------|
+| --- | --- | --- | --- |
 | **Backend (Runner)** | Railway | ✅ Yes | Push to `main` → auto-deploys |
 | **Worker (API)** | raphcode.303@gmail.com (Cloudflare) | ✅ Yes | Push to `main` → auto-builds, then deploy version in dashboard |
 | **Frontend (Pages)** | cassandra.yu@productboard.com (Cloudflare) | ❌ Manual upload | Build locally with `VITE_API_URL`, upload `dist` folder |
@@ -41,9 +41,9 @@ VITE_API_URL="https://demo-api.pb-gtm-apps.com" npm run build
 ```
 
 ### Important URLs
-- **Frontend**: https://demo.pb-gtm-apps.com
-- **Worker API**: https://demo-api.pb-gtm-apps.com
-- **GitHub Repo**: https://github.com/cassandrayuu/Demo-Environment-Generator
+- https://demo.pb-gtm-apps.com**Frontend**: https://demo.pb-gtm-apps.com
+- https://demo-api.pb-gtm-apps.com**Worker**** API**: https://demo-api.pb-gtm-apps.com
+- https://github.com/cassandrayuu/Demo-Environment-Generator**GitHub**** Repo**: https://github.com/cassandrayuu/Demo-Environment-Generator
 
 ### Account Access Summary
 - **Railway**: Backend auto-deploys on push
@@ -315,6 +315,24 @@ Ensure you ran `wrangler secret put RUNNER_URL` and redeployed.
 1. Check `VITE_API_URL` is set correctly
 2. Verify Worker is deployed and responding
 3. Check browser console for CORS errors
+
+### Worker: "Fetch API cannot load: undefined/api/analyze"
+
+**This is the most common issue.** The Worker's `RUNNER_URL` variable is missing or was reset.
+
+**Root cause**: Worker environment variables can get reset when deploying new versions via the Dashboard. Variables set via `wrangler.toml` are NOT automatically applied when deploying via Dashboard uploads.
+
+**Fix**:
+1. Go to Cloudflare (raphcode.303 account) → Workers & Pages → **pb-demo-api** → **Settings**
+2. Under **Variables and Secrets**, verify these exist:
+   | Variable | Value |
+   |----------|-------|
+   | `RUNNER_URL` | `https://demo-environment-generator-production.up.railway.app` |
+   | `RUNNER_SECRET` | (encrypted - should already exist) |
+3. If `RUNNER_URL` is missing, add it
+4. Go to **Deployments** tab and redeploy the latest version
+
+**Prevention**: When making Worker changes, deploy via CLI (`npm run deploy` in `apps/worker/`) rather than Dashboard uploads, as CLI deployments include `wrangler.toml` variables.
 
 ### D1: "Table not found"
 
