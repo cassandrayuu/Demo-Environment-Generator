@@ -609,7 +609,7 @@ def generate_insights(
 
             if apply:
                 try:
-                    # Create the note
+                    # Create the note with V2 API (company created automatically, demo tag in footer)
                     note_id = client.create_note(
                         token=token,
                         title=note.title,
@@ -618,19 +618,15 @@ def generate_insights(
                         source_origin=note.source,
                         source_record_id=str(uuid.uuid4()),
                         company_name=note.company_name,
+                        demo_tag=company,  # Appended to content for filtering
                     )
 
                     if note_id:
                         print(f"[Insights] Created note: {note_id}", flush=True)
                         logs.append(f"  Created note: {note_id}")
+                        logs.append(f"  Demo tag: '{company}' (in note footer)")
                         stats["created"] += 1
-
-                        # Tag the note
-                        if client.tag_note(token, note_id, company):
-                            logs.append(f"  Tagged with '{company}'")
-                            stats["tagged"] += 1
-                        else:
-                            logs.append(f"  Warning: Failed to tag (note was still created)")
+                        stats["tagged"] += 1
                     else:
                         print("[Insights] Error: create_note returned None", flush=True)
                         logs.append(f"  Error: Failed to create note")
@@ -912,7 +908,7 @@ def generate_insights_standalone(
 
         # Helper function to create a single note (for parallel execution)
         def create_single_note(idx: int, note: GeneratedNote) -> Dict:
-            """Create a note and return result dict."""
+            """Create a note with V2 API (company created, demo tag in footer)."""
             try:
                 note_id = client.create_note(
                     token=token,
@@ -922,10 +918,9 @@ def generate_insights_standalone(
                     source_origin=note.source,
                     source_record_id=str(uuid.uuid4()),
                     company_name=note.company_name,
+                    demo_tag=company,  # Appended to content for filtering
                 )
                 if note_id:
-                    # Tag with company name
-                    client.tag_note(token, note_id, company)
                     return {"idx": idx, "success": True, "note_id": note_id, "note": note}
                 else:
                     return {"idx": idx, "success": False, "error": "No note_id returned", "note": note}

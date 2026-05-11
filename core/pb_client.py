@@ -14,9 +14,8 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-# API endpoints
+# API endpoints - fully V2 (V1 deprecated July 8, 2026)
 API_BASE = "https://api.productboard.com/v2"
-API_BASE_V1 = "https://api.productboard.com"  # Keep v1 for notes until tag creation is in v2
 
 # Retry configuration
 MAX_RETRIES = 5
@@ -298,7 +297,70 @@ class ProductboardClient:
         response = self._make_request("PATCH", url, token, json_data=payload)
         return response.status_code in (200, 204)
 
-    # ==================== Notes APIs (v1 - until tag creation is available in v2) ====================
+    # ==================== Company APIs (V2) ====================
+
+    def get_or_create_company(
+        self,
+        token: str,
+        company_name: str,
+        domain: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Get existing company by name or create a new one.
+
+        Args:
+            token: Productboard API token
+            company_name: Company name to find or create
+            domain: Optional domain for the company (e.g., "acme.com")
+
+        Returns:
+            Company ID if found/created, None otherwise.
+        """
+        # First, try to find existing company by name
+        try:
+            companies = self._fetch_all_paginated(
+                f"{API_BASE}/entities",
+                token,
+                params={"type[]": "company"},
+            )
+            for company in companies:
+                if company.get("fields", {}).get("name", "").lower() == company_name.lower():
+                    return company.get("id")
+        except ProductboardError:
+            pass  # Continue to create
+
+        # Company not found, create it
+        url = f"{API_BASE}/entities"
+        payload = {
+            "data": {
+                "type": "company",
+                "fields": {
+                    "name": company_name,
+                }
+            }
+        }
+        if domain:
+            payload["data"]["fields"]["domain"] = domain
+
+        response = self._make_request("POST", url, token, json_data=payload)
+
+        if response.status_code in (200, 201):
+            data = response.json()
+            company_id = data.get("data", {}).get("id")
+            # Brief delay for eventual consistency - newly created companies
+            # aren't immediately available to the Notes API
+            if company_id:
+                time.sleep(1.5)
+            return company_id
+        return None
+
+    # ==================== Notes APIs (V2) ====================
+    #
+    # V2 Notes API limitations and workarounds:
+    # - Tags: V2 can't auto-create tags, so we append a searchable footer
+    #   to the note content (e.g., "---\nDemo: CompanyName") for filtering
+    # - Companies: We create the company first via /v2/entities, then link it
+    #
 
     def create_note(
         self,
@@ -309,42 +371,71 @@ class ProductboardClient:
         source_origin: str,
         source_record_id: str,
         company_name: str,
+        demo_tag: Optional[str] = None,
     ) -> Optional[str]:
         """
-        Create a note and return its ID.
+        Create a note and return its ID (V2 API).
 
-        Returns None if creation failed.
+        Since V2 can't auto-create tags, we append a searchable footer to the
+        note content for filtering purposes (e.g., "Demo: CompanyName").
 
-        Note: Using v1 API until tag creation is available in v2.
+        Args:
+            token: Productboard API token
+            title: Note title
+            content: Note content
+            customer_email: Customer's email address (used for user lookup)
+            source_origin: Source system identifier
+            source_record_id: Unique record ID from source system
+            company_name: Company name (will be created if doesn't exist)
+            demo_tag: Optional tag to append to content for filtering
+
+        Returns:
+            Note ID if created successfully, None otherwise.
         """
-        url = f"{API_BASE_V1}/notes"
+        # Step 1: Get or create the company
+        company_id = self.get_or_create_company(token, company_name)
+
+        # Step 2: Append searchable footer to content for filtering
+        # This replaces tags since V2 can't auto-create them
+        if demo_tag:
+            content_with_footer = f"{content}\n\n---\nDemo: {demo_tag}"
+        else:
+            content_with_footer = content
+
+        # Step 3: Build the V2 note payload
+        url = f"{API_BASE}/notes"
         payload = {
-            "title": title,
-            "content": content,
-            "customer_email": customer_email,
-            "source": {
-                "origin": source_origin,
-                "record_id": source_record_id,
-            },
-            "company": {
-                "name": company_name,
-            },
+            "data": {
+                "type": "textNote",
+                "fields": {
+                    "name": title,
+                    "content": content_with_footer,
+                },
+                "metadata": {
+                    "system": source_origin,
+                    "recordId": source_record_id,
+                },
+            }
         }
+
+        # Step 4: Add company relationship if we have one
+        if company_id:
+            payload["data"]["relationships"] = [
+                {
+                    "type": "customer",
+                    "target": {
+                        "type": "company",
+                        "id": company_id
+                    }
+                }
+            ]
 
         response = self._make_request("POST", url, token, json_data=payload)
 
         if response.status_code in (200, 201):
             data = response.json()
-            return data.get("data", {}).get("id") or data.get("id")
+            return data.get("data", {}).get("id")
         return None
-
-    def tag_note(self, token: str, note_id: str, tag_name: str) -> bool:
-        """Add a tag to a note (v1 API - creates tag if needed)."""
-        encoded_tag = requests.utils.quote(tag_name, safe="")
-        url = f"{API_BASE_V1}/notes/{note_id}/tags/{encoded_tag}"
-
-        response = self._make_request("POST", url, token, json_data={})
-        return response.status_code in (200, 201, 204)
 
     # ==================== Validation ====================
 
